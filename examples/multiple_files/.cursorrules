@@ -1,0 +1,36 @@
+## Security Rules
+
+Never commit secrets, API keys, or credentials to the repository under any circumstances.
+Never use eval() or exec() with user-supplied input.
+Always validate and sanitize all input at system boundaries before processing.
+Never log sensitive user data (passwords, tokens, PII) even at debug level.
+
+## Code Style
+
+- Use `ruff` for linting and formatting — run `ruff check . --fix && ruff format .` before committing
+- Type hints are mandatory on all public functions and class methods
+- Maximum line length is 100 characters
+- Prefer `pathlib.Path` over `os.path` for all filesystem operations
+- f-strings over `.format()` or `%` formatting everywhere
+- No `print()` in production code — use the `logging` module or `rich.console`
+
+## Cursor Workflow
+
+- Always read the file before editing — never assume the current state from memory
+- Prefer editing existing files over creating new ones
+- When writing tests, follow the existing test file naming convention (`test_<module>.py`)
+- Run the test suite after every non-trivial change: `make test`
+- Do not leave TODO comments in committed code — convert them to GitHub issues instead
+- tests are passing on main
+- staging deploy is up to date
+- deploy pipeline is green
+
+## Pull Request Guidelines
+
+- PRs must have a description that explains the *why*, not just the *what*
+- Link to the relevant Linear ticket in the PR description
+- All PRs require at least one approval before merging
+- Squash merge only — no merge commits on main
+- Delete the branch after merging
+- tests are passing on main
+- staging deploy is up to date

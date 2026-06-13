@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "shrinkwrap"
+name = "shrnkwrp"
 version = "0.1.0"
 description = "ShrinkWrap — compress AI agent instruction files into token-optimized format"
 readme = "README.md"

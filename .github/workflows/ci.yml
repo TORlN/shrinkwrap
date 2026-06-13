@@ -67,3 +67,30 @@ jobs:
 
       - name: mypy
         run: mypy src/shrinkwrap/
+
+  deploy:
+    name: Deploy to PyPI
+    needs: [test, lint, typecheck] # Ensures deployment only happens if all checks pass flawlessly!
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' # Only deploy on direct main branch pushes
+    runs-on: ubuntu-latest
+    
+    # Mandated permissions for GitHub OIDC / Trusted Publishing to work securely
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tool
+        run: pip install build
+
+      - name: Build binary wheel and source tarball
+        run: python -m build
+
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release
