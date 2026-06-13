@@ -65,8 +65,7 @@ class TestConsolidateWithMetricsLevel:
     def test_level_condense_metrics_tokens_after_le_no_level(self, tmp_path: Path) -> None:
         f1 = tmp_path / "CLAUDE.md"
         f1.write_text(
-            "## Section A\n\n- shared\n- unique A\n\n"
-            "## Section B\n\n- shared\n- unique B\n\n"
+            "## Section A\n\n- shared\n- unique A\n\n## Section B\n\n- shared\n- unique B\n\n"
         )
         _, m_default = consolidate_with_metrics([f1])
         _, m_condense = consolidate_with_metrics([f1], level="condense")
@@ -101,30 +100,22 @@ class TestConsolidateWithMetricsLevel:
 class TestCLIConsolidateLevelFlag:
     def test_level_flag_accepted(self, tmp_path: Path) -> None:
         (tmp_path / "CLAUDE.md").write_text("## Section A\n\n- item one\n")
-        result = CliRunner().invoke(
-            cli, ["consolidate", str(tmp_path), "--level", "condense"]
-        )
+        result = CliRunner().invoke(cli, ["consolidate", str(tmp_path), "--level", "condense"])
         assert result.exit_code == 0
 
     def test_level_normalize_accepted(self, tmp_path: Path) -> None:
         (tmp_path / "CLAUDE.md").write_text("## Section A\n\n- item one\n")
-        result = CliRunner().invoke(
-            cli, ["consolidate", str(tmp_path), "--level", "normalize"]
-        )
+        result = CliRunner().invoke(cli, ["consolidate", str(tmp_path), "--level", "normalize"])
         assert result.exit_code == 0
 
     def test_level_invalid_value_rejected(self, tmp_path: Path) -> None:
         (tmp_path / "CLAUDE.md").write_text("## Section A\n\n- item one\n")
-        result = CliRunner().invoke(
-            cli, ["consolidate", str(tmp_path), "--level", "turbo"]
-        )
+        result = CliRunner().invoke(cli, ["consolidate", str(tmp_path), "--level", "turbo"])
         assert result.exit_code != 0
 
     def test_level_aggressive_without_allow_lossy_fails(self, tmp_path: Path) -> None:
         (tmp_path / "CLAUDE.md").write_text("## Section A\n\nSome prose.\n")
-        result = CliRunner().invoke(
-            cli, ["consolidate", str(tmp_path), "--level", "aggressive"]
-        )
+        result = CliRunner().invoke(cli, ["consolidate", str(tmp_path), "--level", "aggressive"])
         assert result.exit_code != 0
         assert "allow-lossy" in result.output.lower()
 
@@ -156,9 +147,7 @@ class TestCLIConsolidateDeleteSources:
         f1.write_text("## Section A\n\n- item one\n")
         f2 = tmp_path / "AGENTS.md"
         f2.write_text("## Section B\n\n- item two\n")
-        result = CliRunner().invoke(
-            cli, ["consolidate", str(tmp_path), "--delete-sources"]
-        )
+        result = CliRunner().invoke(cli, ["consolidate", str(tmp_path), "--delete-sources"])
         assert result.exit_code == 0
         assert not f1.exists()
         assert not f2.exists()
@@ -169,9 +158,7 @@ class TestCLIConsolidateDeleteSources:
         f1.write_text("## Section A\n\n- item one\n")
         out = tmp_path / "CONSOLIDATED.md"
 
-        result = CliRunner().invoke(
-            cli, ["consolidate", str(tmp_path), "--delete-sources"]
-        )
+        result = CliRunner().invoke(cli, ["consolidate", str(tmp_path), "--delete-sources"])
         assert result.exit_code == 0
         assert not f1.exists()
         assert out.exists()
@@ -201,16 +188,12 @@ class TestCLIConsolidateDeleteSources:
     def test_delete_sources_output_mentions_deletion(self, tmp_path: Path) -> None:
         f1 = tmp_path / "CLAUDE.md"
         f1.write_text("## Section A\n\n- item one\n")
-        result = CliRunner().invoke(
-            cli, ["consolidate", str(tmp_path), "--delete-sources"]
-        )
+        result = CliRunner().invoke(cli, ["consolidate", str(tmp_path), "--delete-sources"])
         assert result.exit_code == 0
         assert "delet" in result.output.lower()
 
     def test_delete_sources_no_files_found_exits_cleanly(self, tmp_path: Path) -> None:
-        result = CliRunner().invoke(
-            cli, ["consolidate", str(tmp_path), "--delete-sources"]
-        )
+        result = CliRunner().invoke(cli, ["consolidate", str(tmp_path), "--delete-sources"])
         assert result.exit_code == 0
 
     def test_delete_sources_combined_with_level(self, tmp_path: Path) -> None:

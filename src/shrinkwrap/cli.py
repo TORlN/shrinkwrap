@@ -591,9 +591,7 @@ def consolidate(
                 except OSError:
                     pass
         if deleted:
-            console.print(
-                f"[dim]Deleted {len(deleted)} source file(s) (--delete-sources).[/dim]"
-            )
+            console.print(f"[dim]Deleted {len(deleted)} source file(s) (--delete-sources).[/dim]")
 
 
 @cli.command("install-hooks")
