@@ -4,7 +4,10 @@ import json
 import re
 import warnings
 from dataclasses import dataclass
-from typing import Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
+
+if TYPE_CHECKING:
+    from .config import ShrinkWrapConfig
 
 import mistletoe
 import yaml
@@ -15,9 +18,7 @@ COMPRESSION = Literal["normalize", "condense", "aggressive"]
 
 _FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
 _HEADING_RE = re.compile(r"^(#{1,6}) +(.+?)(?:\s+#+\s*)?$")
-_ANNOTATION_RE = re.compile(
-    r"<!--\s*shrinkwrap:\s*(\w+)(?:\s+compression=(\w+))?\s*-->"
-)
+_ANNOTATION_RE = re.compile(r"<!--\s*shrinkwrap:\s*(\w+)(?:\s+compression=(\w+))?\s*-->")
 # Strip VTBF section tags so re-parsing a compressed file is transparent.
 _VTBF_TAG_RE = re.compile(r"<!--\s*/?sw:section\b[^\n]*-->")
 # Detects the opening or closing of a fenced code block (``` or ~~~).
@@ -67,7 +68,7 @@ def _extract_frontmatter(text: str) -> tuple[dict[str, Any], str]:
         data = {}
     if not isinstance(data, dict):
         data = {}
-    return cast(dict[str, Any], data), text[m.end():]
+    return cast(dict[str, Any], data), text[m.end() :]
 
 
 def _classify_section(
@@ -136,12 +137,13 @@ def _classify_section(
     return "mutable", False, "normalize", None
 
 
-def parse(text: str, config: object = None) -> ParsedDocument:
+def parse(text: str, config: ShrinkWrapConfig | None = None) -> ParsedDocument:
     """Parse a markdown instruction file into a structured ParsedDocument."""
-    from .config import ShrinkWrapConfig  # local import to avoid circular
+    from .config import ShrinkWrapConfig as _ShrinkWrapConfig  # avoid circular at runtime
+
     extra_immutable: frozenset[str] = frozenset()
     extra_mutable: frozenset[str] = frozenset()
-    if isinstance(config, ShrinkWrapConfig):
+    if isinstance(config, _ShrinkWrapConfig):
         extra_immutable = frozenset(k.lower() for k in config.extra_immutable_keywords)
         extra_mutable = frozenset(k.lower() for k in config.extra_mutable_keywords)
 
@@ -150,9 +152,7 @@ def parse(text: str, config: object = None) -> ParsedDocument:
     # compressing an already-compressed file is idempotent.
     body_text = _VTBF_TAG_RE.sub("", body_text)
     shrinkwrap_raw = front_matter.get("shrinkwrap", {})
-    shrinkwrap_meta: dict[str, Any] = (
-        shrinkwrap_raw if isinstance(shrinkwrap_raw, dict) else {}
-    )
+    shrinkwrap_meta: dict[str, Any] = shrinkwrap_raw if isinstance(shrinkwrap_raw, dict) else {}
 
     sections: list[Section] = []
     lines = body_text.splitlines(keepends=True)

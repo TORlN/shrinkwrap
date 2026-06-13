@@ -1,4 +1,4 @@
-﻿"""CLI integration tests — RED until commands are fully wired."""
+"""CLI integration tests — RED until commands are fully wired."""
 
 from __future__ import annotations
 
@@ -42,6 +42,7 @@ def sample_file(tmp_path: Path) -> Path:
 # ---------------------------------------------------------------------------
 # compress command
 # ---------------------------------------------------------------------------
+
 
 class TestCompressCommand:
     def test_compress_exits_zero(self, runner: CliRunner, sample_file: Path) -> None:
@@ -119,6 +120,7 @@ class TestCompressCommand:
 # verify command
 # ---------------------------------------------------------------------------
 
+
 class TestVerifyCommand:
     def _compressed(self, runner: CliRunner, sample_file: Path) -> Path:
         runner.invoke(cli, ["compress", str(sample_file)])
@@ -139,9 +141,7 @@ class TestVerifyCommand:
         result = runner.invoke(cli, ["verify", str(vtbf)])
         assert result.exit_code != 0
 
-    def test_verify_non_vtbf_file_exits_nonzero(
-        self, runner: CliRunner, sample_file: Path
-    ) -> None:
+    def test_verify_non_vtbf_file_exits_nonzero(self, runner: CliRunner, sample_file: Path) -> None:
         result = runner.invoke(cli, ["verify", str(sample_file)])
         assert result.exit_code != 0
 
@@ -149,6 +149,7 @@ class TestVerifyCommand:
 # ---------------------------------------------------------------------------
 # expand command
 # ---------------------------------------------------------------------------
+
 
 class TestExpandCommand:
     def _compressed(self, runner: CliRunner, sample_file: Path) -> Path:
@@ -166,10 +167,14 @@ class TestExpandCommand:
         out = vtbf.with_suffix("").with_suffix("")  # strip .sw.md → original name
         # also accept <name>.expanded.md
         expanded = vtbf.parent / (vtbf.stem.replace(".sw", "") + ".expanded.md")
-        assert expanded.exists() or out.exists() or any(
-            f.name.endswith(".expanded.md") or f.name.endswith(".md")
-            for f in vtbf.parent.iterdir()
-            if f != vtbf and f != sample_file
+        assert (
+            expanded.exists()
+            or out.exists()
+            or any(
+                f.name.endswith(".expanded.md") or f.name.endswith(".md")
+                for f in vtbf.parent.iterdir()
+                if f != vtbf and f != sample_file
+            )
         )
 
     def test_expand_output_contains_section_headings(
@@ -214,6 +219,7 @@ class TestExpandCommand:
 # ---------------------------------------------------------------------------
 # audit command
 # ---------------------------------------------------------------------------
+
 
 class TestAuditCommand:
     def test_audit_exits_zero(self, runner: CliRunner, sample_file: Path) -> None:

@@ -22,7 +22,7 @@ Compressed CLAUDE.md (ratio: 61%)
 ## Installation
 
 ```bash
-pip install kickback-bot
+pip install shrinkwrap
 ```
 
 Requires Python 3.11+.
@@ -42,6 +42,28 @@ shrinkwrap compress CLAUDE.md --dry-run
 # Install a git hook that alerts you when your code drifts from your instructions
 shrinkwrap install-hooks
 ```
+
+## Performance
+
+<!-- perf-section-start -->
+The numbers below are measured by the efficacy test suite on a controlled corpus: 8 sections (1 immutable, 3 mutable), 8 unique facts, 5 safety rules, and 8 status bullets duplicated across all 3 mutable sections.
+
+| Metric | `normalize` | `condense` | `aggressive` |
+|---|---|---|---|
+| Token reduction | 0%† | 17% | 26% |
+| Information density improvement | — | +38% | +53% |
+| Safety rule preservation | **5/5** (100%) | **5/5** (100%) | **5/5** (100%) |
+| Unique fact survival | **8/8** (100%) | **8/8** (100%) | **8/8** (100%) |
+| Duplicate bullets removed | 0 / 8 | 8 / 8 | 8 / 8 |
+
+† `normalize` removes whitespace noise only — zero reduction on an already-clean file.
+
+**Information density** is the ratio of unique facts to total content lines. On the test corpus, removing 8 redundant status bullets raised the density from 41% to 57% under `condense` — the model receives the same information in fewer tokens.
+
+**Safety rules and constraints** in `immutable` sections are never modified regardless of level. The 100% preservation rate is enforced structurally: immutable sections are excluded from all compression passes and their content is verified by SHA-256 checksum in the output file.
+
+Real-world savings depend on how much duplicate and filler content your instruction file contains. Files with many repeated status bullets across sections benefit most from `condense`; files with dense filler prose benefit additionally from `aggressive`.
+<!-- perf-section-end -->
 
 ## Commands
 

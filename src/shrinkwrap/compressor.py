@@ -15,6 +15,7 @@ _HIGH_STAKES_RE = re.compile(
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _strip_trailing_spaces(text: str) -> str:
     return "\n".join(line.rstrip() for line in text.split("\n"))
 
@@ -113,6 +114,7 @@ def _relevance_prune(text: str) -> str:
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def compress_section(section: Section, allow_lossy: bool = False) -> str:
     """
     Compress a section's body according to its classification and compression level.
@@ -130,8 +132,7 @@ def compress_section(section: Section, allow_lossy: bool = False) -> str:
 
     if level == "aggressive" and not allow_lossy:
         raise ValueError(
-            "aggressive compression requires allow_lossy=True "
-            "(pass --allow-lossy on the CLI)"
+            "aggressive compression requires allow_lossy=True (pass --allow-lossy on the CLI)"
         )
 
     body = _normalize(body)
@@ -147,9 +148,7 @@ def compress_section(section: Section, allow_lossy: bool = False) -> str:
     return _relevance_prune(body)
 
 
-def compress_document_sections(
-    sections: list[Section], allow_lossy: bool = False
-) -> list[str]:
+def compress_document_sections(sections: list[Section], allow_lossy: bool = False) -> list[str]:
     """
     Compress all sections together, applying cross-section deduplication
     for the condense/aggressive levels.

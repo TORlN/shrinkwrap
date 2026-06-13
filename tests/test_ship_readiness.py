@@ -1,4 +1,4 @@
-﻿"""
+"""
 Tests for gaps that block shipping.
 All RED until implemented.
 """
@@ -26,6 +26,7 @@ ANNOTATED_SOURCE = """\
 # --version flag
 # ---------------------------------------------------------------------------
 
+
 class TestVersionFlag:
     def test_version_flag_exits_zero(self) -> None:
         runner = CliRunner()
@@ -42,10 +43,9 @@ class TestVersionFlag:
 # --level flag must not override per-section annotations when unset
 # ---------------------------------------------------------------------------
 
+
 class TestLevelFlagAnnotationRespect:
-    def test_no_level_flag_preserves_condense_annotation(
-        self, tmp_path: Path
-    ) -> None:
+    def test_no_level_flag_preserves_condense_annotation(self, tmp_path: Path) -> None:
         """Running compress with no --level must not override compression=condense."""
         runner = CliRunner()
         src = tmp_path / "CLAUDE.md"
@@ -58,9 +58,7 @@ class TestLevelFlagAnnotationRespect:
         # The annotated section must still use condense, not the default normalize
         assert 'compression="condense"' in out
 
-    def test_explicit_level_flag_overrides_annotation(
-        self, tmp_path: Path
-    ) -> None:
+    def test_explicit_level_flag_overrides_annotation(self, tmp_path: Path) -> None:
         """Passing --level normalize explicitly SHOULD override all sections."""
         runner = CliRunner()
         src = tmp_path / "CLAUDE.md"
@@ -72,9 +70,7 @@ class TestLevelFlagAnnotationRespect:
         out = src.with_suffix(".sw.md").read_text()
         assert 'compression="normalize"' in out
 
-    def test_explicit_condense_level_applies_to_unannotated_sections(
-        self, tmp_path: Path
-    ) -> None:
+    def test_explicit_condense_level_applies_to_unannotated_sections(self, tmp_path: Path) -> None:
         """--level condense should apply to sections without explicit annotations."""
         runner = CliRunner()
         src = tmp_path / "CLAUDE.md"
@@ -88,6 +84,7 @@ class TestLevelFlagAnnotationRespect:
 # ---------------------------------------------------------------------------
 # --dry-run flag
 # ---------------------------------------------------------------------------
+
 
 class TestDryRun:
     def test_dry_run_exits_zero(self, tmp_path: Path) -> None:
@@ -122,14 +119,14 @@ class TestDryRun:
         result = runner.invoke(cli, ["compress", str(src), "--dry-run"])
         # Should mention something about the file (ratio, token count, or sections)
         assert any(
-            word in result.output.lower()
-            for word in ("ratio", "token", "section", "%", "compress")
+            word in result.output.lower() for word in ("ratio", "token", "section", "%", "compress")
         )
 
 
 # ---------------------------------------------------------------------------
 # stats command
 # ---------------------------------------------------------------------------
+
 
 class TestStatsCommand:
     def test_stats_exits_zero(self, tmp_path: Path) -> None:
@@ -166,6 +163,7 @@ class TestStatsCommand:
         result = runner.invoke(cli, ["stats", str(src)])
         # Should show some numeric token estimate
         import re
+
         assert re.search(r"\d+", result.output)
 
     def test_stats_shows_total_line(self, tmp_path: Path) -> None:
@@ -180,6 +178,7 @@ class TestStatsCommand:
 # ---------------------------------------------------------------------------
 # tiktoken not imported (dead dependency removed)
 # ---------------------------------------------------------------------------
+
 
 class TestNoTiktoken:
     def test_shrinkwrap_modules_do_not_import_tiktoken(self) -> None:
@@ -197,6 +196,7 @@ class TestNoTiktoken:
 
         try:
             import shrinkwrap  # noqa: F401
+
             assert "tiktoken" not in sys.modules, (
                 "tiktoken was imported by a shrinkwrap module but it is declared as removed"
             )

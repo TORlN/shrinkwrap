@@ -1,4 +1,4 @@
-﻿"""
+"""
 TDD tests for four polish items:
 
   5  watch --profile ignores shrinkwrap.toml default_profile
@@ -19,6 +19,7 @@ from shrinkwrap.cli import cli
 # 5 — watch respects default_profile from shrinkwrap.toml
 # ---------------------------------------------------------------------------
 
+
 class TestWatchRespectsConfigProfile:
     def test_watch_uses_generic_profile_from_config(self, tmp_path: Path) -> None:
         """watch must apply default_profile = generic from shrinkwrap.toml."""
@@ -27,9 +28,7 @@ class TestWatchRespectsConfigProfile:
 
         from shrinkwrap.cli import _watch_loop
 
-        (tmp_path / "shrinkwrap.toml").write_text(
-            '[shrinkwrap]\ndefault_profile = "generic"\n'
-        )
+        (tmp_path / "shrinkwrap.toml").write_text('[shrinkwrap]\ndefault_profile = "generic"\n')
         src = tmp_path / "CLAUDE.md"
         src.write_text("## Status\n- ok\n")
 
@@ -60,9 +59,7 @@ class TestWatchRespectsConfigProfile:
 
         from shrinkwrap.cli import _watch_loop
 
-        (tmp_path / "shrinkwrap.toml").write_text(
-            '[shrinkwrap]\ndefault_profile = "generic"\n'
-        )
+        (tmp_path / "shrinkwrap.toml").write_text('[shrinkwrap]\ndefault_profile = "generic"\n')
         src = tmp_path / "CLAUDE.md"
         src.write_text("## Status\n- ok\n")
 
@@ -89,16 +86,13 @@ class TestWatchRespectsConfigProfile:
 # 6 — size warning must not suggest --profile generic when already using it
 # ---------------------------------------------------------------------------
 
+
 class TestSizeWarningSuggestion:
-    def test_generic_profile_does_not_trigger_size_warning(
-        self, tmp_path: Path
-    ) -> None:
+    def test_generic_profile_does_not_trigger_size_warning(self, tmp_path: Path) -> None:
         """--profile generic strips all tags; no overhead warning should fire."""
         src = tmp_path / "CLAUDE.md"
         src.write_text("## A\n- x\n")  # tiny file
-        result = CliRunner().invoke(
-            cli, ["compress", str(src), "--profile", "generic"]
-        )
+        result = CliRunner().invoke(cli, ["compress", str(src), "--profile", "generic"])
         assert result.exit_code == 0
         assert "larger" not in result.output.lower()
 
@@ -108,9 +102,7 @@ class TestSizeWarningSuggestion:
         """When already using cursor profile the suggestion should not say generic."""
         src = tmp_path / "CLAUDE.md"
         src.write_text("## A\n- x\n")
-        result = CliRunner().invoke(
-            cli, ["compress", str(src), "--profile", "cursor"]
-        )
+        result = CliRunner().invoke(cli, ["compress", str(src), "--profile", "cursor"])
         # If warning fires it must not suggest switching to a profile already in use
         if "larger" in result.output.lower():
             assert "--profile generic" not in result.output
@@ -156,6 +148,7 @@ class TestStatsProjection:
     def test_stats_projection_shows_token_estimate(self, tmp_path: Path) -> None:
         """Projection line must contain a numeric token estimate."""
         import re
+
         src = tmp_path / "CLAUDE.md"
         src.write_text(STATS_SOURCE)
         result = CliRunner().invoke(cli, ["stats", str(src)])
@@ -166,6 +159,7 @@ class TestStatsProjection:
     ) -> None:
         """With heavy duplication, projected condense tokens < current tokens."""
         import re
+
         src = tmp_path / "CLAUDE.md"
         src.write_text(STATS_SOURCE)
         result = CliRunner().invoke(cli, ["stats", str(src)])
@@ -175,14 +169,14 @@ class TestStatsProjection:
         # The minimum projected count should be less than the maximum (current)
         assert min(numbers) < max(numbers)
 
-    def test_stats_immutable_sections_not_projected_for_compression(
-        self, tmp_path: Path
-    ) -> None:
+    def test_stats_immutable_sections_not_projected_for_compression(self, tmp_path: Path) -> None:
         """Immutable section tokens should be excluded from mutable projection."""
         src = tmp_path / "CLAUDE.md"
         src.write_text(
-            "<!-- shrinkwrap: immutable -->\n## Rules\n" + "- rule\n" * 20
-            + "## Status\n" + "- item\n" * 20
+            "<!-- shrinkwrap: immutable -->\n## Rules\n"
+            + "- rule\n" * 20
+            + "## Status\n"
+            + "- item\n" * 20
         )
         result = CliRunner().invoke(cli, ["stats", str(src)])
         assert result.exit_code == 0
@@ -193,6 +187,7 @@ class TestStatsProjection:
 # ---------------------------------------------------------------------------
 # 8 — compress and stats discover CLAUDE.md in cwd when no argument given
 # ---------------------------------------------------------------------------
+
 
 class TestAutoDiscovery:
     def test_compress_discovers_claude_md_in_cwd(self, tmp_path: Path) -> None:
@@ -215,17 +210,13 @@ class TestAutoDiscovery:
             runner.invoke(cli, ["compress"])
             assert Path("CLAUDE.md").with_suffix(".sw.md").exists()
 
-    def test_compress_no_arg_no_claude_md_exits_nonzero(
-        self, tmp_path: Path
-    ) -> None:
+    def test_compress_no_arg_no_claude_md_exits_nonzero(self, tmp_path: Path) -> None:
         runner = CliRunner()
         with runner.isolated_filesystem(temp_dir=tmp_path):
             result = runner.invoke(cli, ["compress"])
             assert result.exit_code != 0
 
-    def test_compress_no_arg_error_mentions_claude_md(
-        self, tmp_path: Path
-    ) -> None:
+    def test_compress_no_arg_error_mentions_claude_md(self, tmp_path: Path) -> None:
         runner = CliRunner()
         with runner.isolated_filesystem(temp_dir=tmp_path):
             result = runner.invoke(cli, ["compress"])
@@ -239,9 +230,7 @@ class TestAutoDiscovery:
             assert result.exit_code == 0
             assert "Status" in result.output
 
-    def test_stats_no_arg_no_claude_md_exits_nonzero(
-        self, tmp_path: Path
-    ) -> None:
+    def test_stats_no_arg_no_claude_md_exits_nonzero(self, tmp_path: Path) -> None:
         runner = CliRunner()
         with runner.isolated_filesystem(temp_dir=tmp_path):
             result = runner.invoke(cli, ["stats"])

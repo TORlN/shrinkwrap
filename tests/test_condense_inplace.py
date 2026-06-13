@@ -1,4 +1,4 @@
-﻿"""Tests for condense cross-section deduplication and the compress --in-place flag."""
+"""Tests for condense cross-section deduplication and the compress --in-place flag."""
 
 from __future__ import annotations
 
@@ -15,12 +15,7 @@ from shrinkwrap.schema import serialize
 # ---------------------------------------------------------------------------
 
 CROSS_SECTION_SOURCE = (
-    "## Section A\n"
-    "- shared item\n"
-    "- unique to A\n"
-    "## Section B\n"
-    "- shared item\n"
-    "- unique to B\n"
+    "## Section A\n- shared item\n- unique to A\n## Section B\n- shared item\n- unique to B\n"
 )
 
 
@@ -36,9 +31,7 @@ class TestCondenseCrossSectionDedup:
             "condense should remove the duplicate 'shared item' bullet from the second section"
         )
 
-    def test_condense_via_cli_removes_cross_section_duplicate(
-        self, tmp_path: Path
-    ) -> None:
+    def test_condense_via_cli_removes_cross_section_duplicate(self, tmp_path: Path) -> None:
         """CLI compress --level condense must deduplicate across sections."""
         runner = CliRunner()
         src = tmp_path / "CLAUDE.md"
@@ -70,10 +63,7 @@ class TestCondenseCrossSectionDedup:
         """VTBF output after condense cross-section dedup must still verify clean."""
         runner = CliRunner()
         src = tmp_path / "CLAUDE.md"
-        src.write_text(
-            "<!-- shrinkwrap: immutable -->\n## Rules\nNever.\n"
-            + CROSS_SECTION_SOURCE
-        )
+        src.write_text("<!-- shrinkwrap: immutable -->\n## Rules\nNever.\n" + CROSS_SECTION_SOURCE)
         runner.invoke(cli, ["compress", str(src), "--level", "condense"])
         vtbf = src.with_suffix(".sw.md")
         result = runner.invoke(cli, ["verify", str(vtbf)])
@@ -96,6 +86,7 @@ class TestCondenseCrossSectionDedup:
 # ---------------------------------------------------------------------------
 # BUG-2 — --in-place flag: compress overwrites the source file
 # ---------------------------------------------------------------------------
+
 
 class TestInPlaceFlag:
     def test_in_place_exits_zero(self, tmp_path: Path) -> None:
@@ -122,9 +113,7 @@ class TestInPlaceFlag:
     def test_in_place_output_passes_verify(self, tmp_path: Path) -> None:
         runner = CliRunner()
         src = tmp_path / "CLAUDE.md"
-        src.write_text(
-            "<!-- shrinkwrap: immutable -->\n## Rules\nNever.\n## Status\n- ok\n"
-        )
+        src.write_text("<!-- shrinkwrap: immutable -->\n## Rules\nNever.\n## Status\n- ok\n")
         runner.invoke(cli, ["compress", str(src), "--in-place"])
         result = runner.invoke(cli, ["verify", str(src)])
         assert result.exit_code == 0
@@ -162,8 +151,6 @@ class TestInPlaceFlag:
     def test_in_place_preserves_immutable_content(self, tmp_path: Path) -> None:
         runner = CliRunner()
         src = tmp_path / "CLAUDE.md"
-        src.write_text(
-            "<!-- shrinkwrap: immutable -->\n## Rules\nNever use eval().\n"
-        )
+        src.write_text("<!-- shrinkwrap: immutable -->\n## Rules\nNever use eval().\n")
         runner.invoke(cli, ["compress", str(src), "--in-place"])
         assert "Never use eval()." in src.read_text()

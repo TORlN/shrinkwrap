@@ -1,4 +1,4 @@
-﻿"""Tests for drift.py — all should be RED until implemented."""
+"""Tests for drift.py — all should be RED until implemented."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from shrinkwrap.drift import (
 # ---------------------------------------------------------------------------
 # extract_public_symbols
 # ---------------------------------------------------------------------------
+
 
 class TestExtractPublicSymbols:
     def test_top_level_function(self) -> None:
@@ -48,11 +49,7 @@ class TestExtractPublicSymbols:
         assert extract_public_symbols("def broken(:\n    pass\n") == set()
 
     def test_multiple_symbols(self) -> None:
-        source = (
-            "def alpha(): pass\n"
-            "def beta(): pass\n"
-            "class Gamma: pass\n"
-        )
+        source = "def alpha(): pass\ndef beta(): pass\nclass Gamma: pass\n"
         symbols = extract_public_symbols(source)
         assert symbols == {"alpha", "beta", "Gamma"}
 
@@ -60,6 +57,7 @@ class TestExtractPublicSymbols:
 # ---------------------------------------------------------------------------
 # compute_symbol_drift
 # ---------------------------------------------------------------------------
+
 
 class TestComputeSymbolDrift:
     def test_new_function_is_added(self) -> None:
@@ -108,6 +106,7 @@ class TestComputeSymbolDrift:
 # ---------------------------------------------------------------------------
 # DriftResult
 # ---------------------------------------------------------------------------
+
 
 class TestDriftResult:
     def test_threshold_exceeded_above_0_35(self) -> None:

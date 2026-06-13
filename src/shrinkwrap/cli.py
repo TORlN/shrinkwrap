@@ -22,6 +22,7 @@ console = Console()
 
 try:
     from importlib.metadata import version as _pkg_version
+
     _VERSION = _pkg_version("shrinkwrap")
 except Exception:
     _VERSION = "0.0.0"
@@ -49,13 +50,17 @@ def cli() -> None:
     help="Output profile (default: shrinkwrap.toml or 'claude')",
 )
 @click.option(
-    "--allow-lossy", is_flag=True, default=False,
+    "--allow-lossy",
+    is_flag=True,
+    default=False,
     help="Allow aggressive (lossy) compression.",
 )
 @click.option("--dry-run", is_flag=True, default=False, help="Print to stdout; do not write file.")
 @click.option("--in-place", is_flag=True, default=False, help="Overwrite the source file.")
 @click.option(
-    "--backup", is_flag=True, default=False,
+    "--backup",
+    is_flag=True,
+    default=False,
     help="Write <file>.bak before overwriting (requires --in-place).",
 )
 def compress(
@@ -98,7 +103,7 @@ def compress(
     # Resolve effective level and profile: CLI flag > config > built-in default
     effective_profile: str = profile if profile is not None else cfg.default_profile
 
-    source_text = src_path.read_text(encoding="utf-8")
+    source_text = _read_text(src_path)
     doc = parse(source_text, config=cfg)
 
     for section in doc.sections:
@@ -157,8 +162,9 @@ def compress(
     out_path.write_text(vtbf, encoding="utf-8")
 
     fm_ratio = _parse_ratio(vtbf)
-    console.print(f"[green]Compressed[/green] {src_path.name} → {out_path.name} "
-                  f"(ratio: {fm_ratio:.0%})")
+    console.print(
+        f"[green]Compressed[/green] {src_path.name} → {out_path.name} (ratio: {fm_ratio:.0%})"
+    )
 
 
 @cli.command()
@@ -172,7 +178,7 @@ def expand(vtbf_file: str, output: str | None, in_place: bool) -> None:
         sys.exit(1)
 
     vtbf_path = Path(vtbf_file)
-    vtbf_text = vtbf_path.read_text(encoding="utf-8")
+    vtbf_text = _read_text(vtbf_path)
 
     if "shrinkwrap_schema" not in vtbf_text:
         console.print(
@@ -203,15 +209,22 @@ def expand(vtbf_file: str, output: str | None, in_place: bool) -> None:
 @cli.command()
 @click.argument("vtbf_file", type=click.Path(exists=True))
 @click.option(
-    "--strict", is_flag=True, default=False,
+    "--strict",
+    is_flag=True,
+    default=False,
     help="Also verify that the source file hash matches (detects source changes post-compress).",
 )
-@click.option("--json", "output_json", is_flag=True, default=False,
-              help="Emit machine-readable JSON instead of human-readable output.")
+@click.option(
+    "--json",
+    "output_json",
+    is_flag=True,
+    default=False,
+    help="Emit machine-readable JSON instead of human-readable output.",
+)
 def verify(vtbf_file: str, strict: bool, output_json: bool) -> None:
     """Verify a VTBF file's integrity."""
     vtbf_path = Path(vtbf_file)
-    vtbf_text = vtbf_path.read_text(encoding="utf-8")
+    vtbf_text = _read_text(vtbf_path)
 
     # For --strict, locate and read the original source file referenced in front-matter.
     source_text: str | None = None
@@ -220,27 +233,38 @@ def verify(vtbf_file: str, strict: bool, output_json: bool) -> None:
         if fm_match:
             try:
                 fm = yaml.safe_load(fm_match.group(1)) or {}
-                source_file = str(fm.get("source_file", ""))
-                if source_file:
-                    source_path = vtbf_path.parent / source_file
-                    if source_path.exists():
+            except yaml.YAMLError as exc:
+                console.print(f"[yellow]Warning:[/yellow] Could not parse front-matter: {exc}")
+                fm = {}
+            source_file = str(fm.get("source_file", ""))
+            if source_file:
+                source_path = vtbf_path.parent / source_file
+                if source_path.exists():
+                    try:
                         source_text = source_path.read_text(encoding="utf-8")
-                    else:
+                    except UnicodeDecodeError:
                         console.print(
-                            f"[yellow]Warning:[/yellow] Source file {source_file!r} not found; "
-                            "skipping source hash check."
+                            f"[yellow]Warning:[/yellow] Source file {source_file!r} is not "
+                            "valid UTF-8; skipping source hash check."
                         )
-            except Exception:
-                pass
+                else:
+                    console.print(
+                        f"[yellow]Warning:[/yellow] Source file {source_file!r} not found; "
+                        "skipping source hash check."
+                    )
 
     result = verify_vtbf(vtbf_text, strict=strict, source_text=source_text)
 
     if output_json:
-        click.echo(json.dumps({
-            "valid": result.valid,
-            "errors": result.errors,
-            "warnings": result.warnings,
-        }))
+        click.echo(
+            json.dumps(
+                {
+                    "valid": result.valid,
+                    "errors": result.errors,
+                    "warnings": result.warnings,
+                }
+            )
+        )
         if not result.valid:
             sys.exit(1)
         return
@@ -275,7 +299,7 @@ def audit(input_file: str | None) -> None:
         sys.exit(1)
 
     cfg = load_config(src_path.parent)
-    source_text = src_path.read_text(encoding="utf-8")
+    source_text = _read_text(src_path)
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         doc = parse(source_text, config=cfg)
@@ -314,8 +338,13 @@ def audit(input_file: str | None) -> None:
 
 @cli.command()
 @click.argument("input_file", type=click.Path(), required=False, default=None)
-@click.option("--json", "output_json", is_flag=True, default=False,
-              help="Emit machine-readable JSON instead of human-readable output.")
+@click.option(
+    "--json",
+    "output_json",
+    is_flag=True,
+    default=False,
+    help="Emit machine-readable JSON instead of human-readable output.",
+)
 def stats(input_file: str | None, output_json: bool) -> None:
     """Show token statistics and compression projections for an instruction file."""
     from .compressor import compress_document_sections
@@ -332,7 +361,7 @@ def stats(input_file: str | None, output_json: bool) -> None:
         )
         sys.exit(1)
 
-    source_text = src_path.read_text(encoding="utf-8")
+    source_text = _read_text(src_path)
     cfg = load_config(src_path.parent)
     doc = parse(source_text, config=cfg)
 
@@ -348,21 +377,25 @@ def stats(input_file: str | None, output_json: bool) -> None:
     total_tokens = sum(max(1, len(s.body) // 4) for s in doc.sections)
 
     if output_json:
-        click.echo(json.dumps({
-            "sections": [
+        click.echo(
+            json.dumps(
                 {
-                    "heading": s.heading,
-                    "classification": s.classification,
-                    "tokens": max(1, len(s.body) // 4),
+                    "sections": [
+                        {
+                            "heading": s.heading,
+                            "classification": s.classification,
+                            "tokens": max(1, len(s.body) // 4),
+                        }
+                        for s in doc.sections
+                    ],
+                    "total_tokens": total_tokens,
+                    "projections": {
+                        "normalize": _project("normalize"),
+                        "condense": _project("condense"),
+                    },
                 }
-                for s in doc.sections
-            ],
-            "total_tokens": total_tokens,
-            "projections": {
-                "normalize": _project("normalize"),
-                "condense": _project("condense"),
-            },
-        }))
+            )
+        )
         return
 
     # Current token counts per section
@@ -403,8 +436,11 @@ def stats(input_file: str | None, output_json: bool) -> None:
         return f"{saved:.0%}" if saved > 0 else "0%"
 
     proj.add_row("normalize", str(norm_tok), _pct(total_tokens, norm_tok))
-    proj.add_row("[bold]condense[/bold]", f"[bold]{cond_tok}[/bold]",
-                 f"[bold]{_pct(total_tokens, cond_tok)}[/bold]")
+    proj.add_row(
+        "[bold]condense[/bold]",
+        f"[bold]{cond_tok}[/bold]",
+        f"[bold]{_pct(total_tokens, cond_tok)}[/bold]",
+    )
     console.print(proj)
     console.print(
         f"[dim]{len(doc.sections)} section(s) · {total_tokens} tokens now · "
@@ -448,8 +484,7 @@ def init(force: bool) -> None:
     )
     config_path.write_text(template, encoding="utf-8")
     console.print(
-        "[green]Created[/green] shrinkwrap.toml "
-        "— edit it to customise compression behaviour."
+        "[green]Created[/green] shrinkwrap.toml — edit it to customise compression behaviour."
     )
 
 
@@ -459,7 +494,7 @@ def upgrade(vtbf_file: str) -> None:
     """Upgrade a VTBF file to the current schema version."""
     from .schema import SCHEMA_VERSION
 
-    text = Path(vtbf_file).read_text(encoding="utf-8")
+    text = _read_text(Path(vtbf_file))
     if "shrinkwrap_schema" not in text:
         console.print(
             f"[red]Error:[/red] {Path(vtbf_file).name} is not a VTBF file "
@@ -491,10 +526,7 @@ def install_hooks(repo: str, force: bool) -> None:
         )
         sys.exit(1)
 
-    hook_script = (
-        "#!/bin/sh\n"
-        "shrinkwrap drift-check --hook-mode 2>&1 || true\n"
-    )
+    hook_script = "#!/bin/sh\nshrinkwrap drift-check --hook-mode 2>&1 || true\n"
     hook_path.write_text(hook_script, encoding="utf-8")
     hook_path.chmod(0o755)
     console.print(f"[green]Installed[/green] post-commit hook at {hook_path}")
@@ -528,20 +560,18 @@ def drift_check(hook_mode: bool, repo: str) -> None:
         # Distinguish a real error from a timeout: thread alive == timed out (silent).
         if error_holder and not thread.is_alive():
             console.print(
-                f"[yellow][shrinkwrap] Warning:[/yellow] drift scoring failed "
-                f"({error_holder[0]})"
+                f"[yellow][shrinkwrap] Warning:[/yellow] drift scoring failed ({error_holder[0]})"
             )
         return
 
     from .drift import DriftResult
+
     result = result_holder[0]
     if not isinstance(result, DriftResult) or result.score < cfg.drift_threshold:
         return
 
     symbols = ", ".join(result.changed_public_symbols[:5])
-    console.print(
-        f"\n[yellow][shrinkwrap][/yellow] Drift detected (score: {result.score:.2f})"
-    )
+    console.print(f"\n[yellow][shrinkwrap][/yellow] Drift detected (score: {result.score:.2f})")
     if symbols:
         console.print(f"  Changed public API: {symbols}")
     console.print("  Run: shrinkwrap compress <file> --in-place")
@@ -551,10 +581,11 @@ def drift_check(hook_mode: bool, repo: str) -> None:
 # watch command + loop
 # ---------------------------------------------------------------------------
 
+
 def _watch_loop(
     path: Path,
     level: str | None,
-    profile: str | None,   # None → read from shrinkwrap.toml or "claude"
+    profile: str | None,  # None → read from shrinkwrap.toml or "claude"
     allow_lossy: bool,
     interval: float,
     *,
@@ -568,7 +599,7 @@ def _watch_loop(
     last_mtime = path.stat().st_mtime
 
     while not _stop.is_set():
-        _stop.wait(interval)   # interruptible sleep — wakes immediately on set()
+        _stop.wait(interval)  # interruptible sleep — wakes immediately on set()
         if _stop.is_set():
             break
 
@@ -607,7 +638,7 @@ def _watch_loop(
             vtbf = _strip_all_tags(vtbf)
 
         path.write_text(vtbf, encoding="utf-8")
-        last_mtime = path.stat().st_mtime   # consume our own write
+        last_mtime = path.stat().st_mtime  # consume our own write
 
         fm_ratio = _parse_ratio(vtbf)
         console.print(f"[green]Recompressed[/green] {path.name} (ratio: {fm_ratio:.0%})")
@@ -622,7 +653,10 @@ def _watch_loop(
     help="Compression level override (default: respect per-section annotations).",
 )
 @click.option(
-    "--interval", type=float, default=1.0, show_default=True,
+    "--interval",
+    type=float,
+    default=1.0,
+    show_default=True,
     help="Poll interval in seconds.",
 )
 @click.option(
@@ -631,7 +665,12 @@ def _watch_loop(
     default=None,
     help="Output profile (default: shrinkwrap.toml or 'claude').",
 )
-@click.option("--allow-lossy", is_flag=True, default=False)
+@click.option(
+    "--allow-lossy",
+    is_flag=True,
+    default=False,
+    help="Allow aggressive (lossy) compression for sections annotated with compression=aggressive.",
+)
 def watch(
     file: str | None,
     level: str | None,
@@ -651,10 +690,7 @@ def watch(
         )
         sys.exit(1)
 
-    console.print(
-        f"[green]Watching[/green] {path.name} "
-        f"(interval: {interval}s) — Ctrl+C to stop"
-    )
+    console.print(f"[green]Watching[/green] {path.name} (interval: {interval}s) — Ctrl+C to stop")
     try:
         _watch_loop(path, level, profile, allow_lossy, interval)
     except KeyboardInterrupt:
@@ -664,6 +700,19 @@ def watch(
 # ---------------------------------------------------------------------------
 # Profile helpers
 # ---------------------------------------------------------------------------
+
+
+def _read_text(path: Path) -> str:
+    """Read a file as UTF-8, printing a clean error and exiting on encoding failure."""
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        console.print(
+            f"[red]Error:[/red] {path.name} is not valid UTF-8. "
+            "ShrinkWrap only supports UTF-8 encoded files."
+        )
+        sys.exit(1)
+
 
 def _strip_front_matter(vtbf: str) -> str:
     return re.sub(r"\A---\n.*?\n---\n", "", vtbf, flags=re.DOTALL)
@@ -688,9 +737,7 @@ def _maybe_warn_size(vtbf: str, source_text: str, profile: str) -> None:
     if profile == "generic":
         # All tags stripped — any size difference is trivial trailing whitespace; don't warn.
         return
-    suggestion = (
-        " Consider --profile generic." if profile == "claude" else ""
-    )
+    suggestion = " Consider --profile generic." if profile == "claude" else ""
     console.print(
         f"[yellow]Warning:[/yellow] compressed output is larger than the source "
         f"({len(vtbf)} vs {len(source_text)} chars). "

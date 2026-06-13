@@ -1,4 +1,4 @@
-﻿"""Tests for schema.py — VTBF serialization, front-matter envelope, and verify."""
+"""Tests for schema.py — VTBF serialization, front-matter envelope, and verify."""
 
 from __future__ import annotations
 
@@ -35,6 +35,7 @@ Always validate user input.
 - deploy pending
 """
 
+
 def _parse_fm(vtbf: str) -> dict:  # type: ignore[type-arg]
     m = re.match(r"\A---\n(.*?)\n---\n", vtbf, re.DOTALL)
     assert m, "No front-matter found in VTBF output"
@@ -44,6 +45,7 @@ def _parse_fm(vtbf: str) -> dict:  # type: ignore[type-arg]
 # ---------------------------------------------------------------------------
 # Serialize — front-matter envelope
 # ---------------------------------------------------------------------------
+
 
 class TestSerializeFrontMatter:
     def setup_method(self) -> None:
@@ -76,6 +78,7 @@ class TestSerializeFrontMatter:
 # ---------------------------------------------------------------------------
 # Serialize — section tags
 # ---------------------------------------------------------------------------
+
 
 class TestSerializeSectionTags:
     def setup_method(self) -> None:
@@ -114,6 +117,7 @@ class TestSerializeSectionTags:
 # Serialize — round-trip
 # ---------------------------------------------------------------------------
 
+
 class TestRoundTrip:
     def test_immutable_sections_byte_identical_after_round_trip(self) -> None:
         doc = parse(SAMPLE_SOURCE)
@@ -121,11 +125,13 @@ class TestRoundTrip:
         # Re-parse and re-serialize the VTBF output
         doc2 = parse(vtbf)
         vtbf2 = serialize(doc2, "CLAUDE.md.sw.md", vtbf)
+
         # The immutable section content must be identical across both passes
         def extract_section_content(text: str, section_id: str) -> str:
             m = re.search(
                 rf'<!-- sw:section[^>]*id="{section_id}"[^>]*-->\n(.*?)<!-- /sw:section -->',
-                text, re.DOTALL
+                text,
+                re.DOTALL,
             )
             return m.group(1) if m else ""
 
@@ -145,6 +151,7 @@ class TestRoundTrip:
 # ---------------------------------------------------------------------------
 # Verify — valid document
 # ---------------------------------------------------------------------------
+
 
 class TestVerifyValid:
     def setup_method(self) -> None:
@@ -169,6 +176,7 @@ class TestVerifyValid:
 # Verify — tampered immutable section
 # ---------------------------------------------------------------------------
 
+
 class TestVerifyTamperedImmutable:
     def test_modified_immutable_content_fails_soft(self) -> None:
         doc = parse(SAMPLE_SOURCE)
@@ -192,13 +200,14 @@ class TestVerifyTamperedImmutable:
 # Verify — missing/invalid front-matter
 # ---------------------------------------------------------------------------
 
+
 class TestVerifyInvalidFrontMatter:
     def test_missing_front_matter_fails(self) -> None:
         result = verify("## Hello\ncontent\n")
         assert result.valid is False
 
     def test_unsupported_schema_version_fails(self) -> None:
-        vtbf = "---\nshrinkwrap_schema: \"99.0\"\nsource_file: x\n---\n## H\ncontent\n"
+        vtbf = '---\nshrinkwrap_schema: "99.0"\nsource_file: x\n---\n## H\ncontent\n'
         result = verify(vtbf)
         assert result.valid is False
         assert any("version" in e.lower() or "schema" in e.lower() for e in result.errors)

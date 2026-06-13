@@ -1,4 +1,5 @@
-"""Tests for verify --strict source-hash checking, watched_paths drift filtering, and CLI version metadata."""
+"""Tests for verify --strict source-hash checking, watched_paths drift filtering,
+and CLI version metadata."""
 
 from __future__ import annotations
 
@@ -10,10 +11,10 @@ from click.testing import CliRunner
 from shrinkwrap.cli import cli
 from shrinkwrap.drift import DriftResult, score_commit
 
-
 # ---------------------------------------------------------------------------
 # B1 — --strict must actually check source-file hash
 # ---------------------------------------------------------------------------
+
 
 class TestStrictVerifyChecksSourceHash:
     def _compress(self, runner: CliRunner, src: Path) -> Path:
@@ -23,16 +24,12 @@ class TestStrictVerifyChecksSourceHash:
     def test_strict_passes_when_source_unchanged(self, tmp_path: Path) -> None:
         runner = CliRunner()
         src = tmp_path / "CLAUDE.md"
-        src.write_text(
-            "<!-- shrinkwrap: immutable -->\n## Rules\nNever.\n## Status\n- ok\n"
-        )
+        src.write_text("<!-- shrinkwrap: immutable -->\n## Rules\nNever.\n## Status\n- ok\n")
         vtbf = self._compress(runner, src)
         result = runner.invoke(cli, ["verify", str(vtbf), "--strict"])
         assert result.exit_code == 0
 
-    def test_strict_fails_when_source_changed_after_compress(
-        self, tmp_path: Path
-    ) -> None:
+    def test_strict_fails_when_source_changed_after_compress(self, tmp_path: Path) -> None:
         runner = CliRunner()
         src = tmp_path / "CLAUDE.md"
         src.write_text("## Status\n- original content\n")
@@ -51,9 +48,7 @@ class TestStrictVerifyChecksSourceHash:
         out = result.output.lower()
         assert "source" in out or "changed" in out or "hash" in out or "sha" in out
 
-    def test_strict_warns_and_skips_when_source_not_found(
-        self, tmp_path: Path
-    ) -> None:
+    def test_strict_warns_and_skips_when_source_not_found(self, tmp_path: Path) -> None:
         runner = CliRunner()
         src = tmp_path / "CLAUDE.md"
         src.write_text("## Status\n- ok\n")
@@ -76,6 +71,7 @@ class TestStrictVerifyChecksSourceHash:
 
     def test_strict_json_mode_reports_error_in_json(self, tmp_path: Path) -> None:
         import json as _json
+
         runner = CliRunner()
         src = tmp_path / "CLAUDE.md"
         src.write_text("## Status\n- original\n")
@@ -91,11 +87,13 @@ class TestStrictVerifyChecksSourceHash:
 # B2 — watched_paths must be applied when scoring drift
 # ---------------------------------------------------------------------------
 
+
 class TestWatchedPathsFiltersScoreCommit:
     def test_score_commit_accepts_watched_paths_kwarg(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """score_commit must accept a watched_paths parameter without TypeError."""
+
         def mock_git_run(args: list[str], cwd: Path) -> str:
             if "--name-only" in args:
                 return "src/main.py\n"
@@ -109,6 +107,7 @@ class TestWatchedPathsFiltersScoreCommit:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """Files whose paths do not start with any watched path must be excluded."""
+
         def mock_git_run(args: list[str], cwd: Path) -> str:
             if "--name-only" in args:
                 return "outside/module.py\nother/utils.py\n"
@@ -159,9 +158,7 @@ class TestWatchedPathsFiltersScoreCommit:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """drift-check must pass cfg.watched_paths to score_commit."""
-        (tmp_path / "shrinkwrap.toml").write_text(
-            '[shrinkwrap]\nwatched_paths = ["src/"]\n'
-        )
+        (tmp_path / "shrinkwrap.toml").write_text('[shrinkwrap]\nwatched_paths = ["src/"]\n')
         received: dict[str, object] = {}
 
         def capture(
@@ -180,6 +177,7 @@ class TestWatchedPathsFiltersScoreCommit:
 # ---------------------------------------------------------------------------
 # B3 — CLI --version must come from package metadata, not a hardcoded string
 # ---------------------------------------------------------------------------
+
 
 class TestVersionFromPackageMetadata:
     def test_version_flag_shows_package_version(self) -> None:

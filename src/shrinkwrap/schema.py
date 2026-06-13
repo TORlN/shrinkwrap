@@ -9,20 +9,20 @@ from typing import Any
 import yaml
 
 from .compressor import compress_document_sections
-from .parser import CLASSIFICATION, COMPRESSION, ParsedDocument, _FRONTMATTER_RE
+from .parser import _FRONTMATTER_RE, ParsedDocument
 
 SCHEMA_VERSION = "1.0"
 
 _SECTION_OPEN_RE = re.compile(
-    r'<!-- sw:section\s+'
+    r"<!-- sw:section\s+"
     r'id="(?P<id>[^"]+)"\s+'
     r'class="(?P<cls>[^"]+)"'
     r'(?:\s+checksum="(?P<checksum>[^"]+)")?'
     r'(?:\s+compression="(?P<compression>[^"]+)")?'
-    r'(?:\s+original_tokens=(?P<orig_tok>\d+))?'
-    r'(?:\s+compressed_tokens=(?P<comp_tok>\d+))?'
+    r"(?:\s+original_tokens=(?P<orig_tok>\d+))?"
+    r"(?:\s+compressed_tokens=(?P<comp_tok>\d+))?"
     r'(?:\s+manually_edited="(?P<manually_edited>[^"]+)")?'
-    r'\s*-->',
+    r"\s*-->",
 )
 _SECTION_CLOSE = "<!-- /sw:section -->"
 
@@ -37,6 +37,7 @@ class VerifyResult:
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _sha256_short(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()[:16]
@@ -54,6 +55,7 @@ def _section_id(heading: str) -> str:
 # ---------------------------------------------------------------------------
 # Serialize
 # ---------------------------------------------------------------------------
+
 
 def serialize(
     doc: ParsedDocument,
@@ -105,18 +107,11 @@ def serialize(
         annotation = ""
         if section.annotation_source:
             comp_hint = (
-                f" compression={section.compression}"
-                if section.compression != "normalize"
-                else ""
+                f" compression={section.compression}" if section.compression != "normalize" else ""
             )
             annotation = f"<!-- shrinkwrap: {section.classification}{comp_hint} -->\n"
 
-        block = (
-            f"{annotation}"
-            f"<!-- sw:section {attrs} -->\n"
-            f"{content_in_file}"
-            f"{_SECTION_CLOSE}"
-        )
+        block = f"{annotation}<!-- sw:section {attrs} -->\n{content_in_file}{_SECTION_CLOSE}"
         section_blocks.append(block)
 
     ratio = round(total_compressed / max(total_original, 1), 3)
@@ -145,6 +140,7 @@ def serialize(
 # Verify
 # ---------------------------------------------------------------------------
 
+
 def verify(
     vtbf_text: str,
     strict: bool = False,
@@ -169,15 +165,13 @@ def verify(
     if not schema_ver:
         errors.append("Missing shrinkwrap_schema in front-matter")
     elif not schema_ver.startswith("1."):
-        errors.append(
-            f"Unsupported schema version: {schema_ver!r}. Run 'shrinkwrap upgrade'."
-        )
+        errors.append(f"Unsupported schema version: {schema_ver!r}. Run 'shrinkwrap upgrade'.")
 
     if errors:
         return VerifyResult(False, errors, warnings)
 
     # 3. Verify immutable section checksums
-    body = vtbf_text[fm_match.end():]
+    body = vtbf_text[fm_match.end() :]
     for open_match in _SECTION_OPEN_RE.finditer(body):
         cls = open_match.group("cls")
         stored_checksum = open_match.group("checksum")

@@ -1,4 +1,4 @@
-﻿"""Tests for config.py — all RED until implemented."""
+"""Tests for config.py — all RED until implemented."""
 
 from __future__ import annotations
 
@@ -40,46 +40,64 @@ class TestLoadConfigFromFile:
         return load_config(tmp_path)
 
     def test_level_override(self, tmp_path: Path) -> None:
-        cfg = self._write(tmp_path, """\
+        cfg = self._write(
+            tmp_path,
+            """\
             [shrinkwrap]
             default_level = "condense"
-        """)
+        """,
+        )
         assert cfg.default_level == "condense"
 
     def test_profile_override(self, tmp_path: Path) -> None:
-        cfg = self._write(tmp_path, """\
+        cfg = self._write(
+            tmp_path,
+            """\
             [shrinkwrap]
             default_profile = "cursor"
-        """)
+        """,
+        )
         assert cfg.default_profile == "cursor"
 
     def test_drift_threshold_override(self, tmp_path: Path) -> None:
-        cfg = self._write(tmp_path, """\
+        cfg = self._write(
+            tmp_path,
+            """\
             [shrinkwrap]
             drift_threshold = 0.5
-        """)
+        """,
+        )
         assert cfg.drift_threshold == pytest.approx(0.5)
 
     def test_watched_paths(self, tmp_path: Path) -> None:
-        cfg = self._write(tmp_path, """\
+        cfg = self._write(
+            tmp_path,
+            """\
             [shrinkwrap]
             watched_paths = ["src/", "lib/"]
-        """)
+        """,
+        )
         assert "src/" in cfg.watched_paths
         assert "lib/" in cfg.watched_paths
 
     def test_extra_immutable_keywords(self, tmp_path: Path) -> None:
-        cfg = self._write(tmp_path, """\
+        cfg = self._write(
+            tmp_path,
+            """\
             [shrinkwrap]
             extra_immutable_keywords = ["invariant", "contract"]
-        """)
+        """,
+        )
         assert "invariant" in cfg.extra_immutable_keywords
 
     def test_extra_mutable_keywords(self, tmp_path: Path) -> None:
-        cfg = self._write(tmp_path, """\
+        cfg = self._write(
+            tmp_path,
+            """\
             [shrinkwrap]
             extra_mutable_keywords = ["roadmap", "backlog"]
-        """)
+        """,
+        )
         assert "backlog" in cfg.extra_mutable_keywords
 
     def test_invalid_toml_falls_back_to_defaults(self, tmp_path: Path) -> None:
@@ -88,18 +106,24 @@ class TestLoadConfigFromFile:
         assert cfg.default_level is None
 
     def test_unknown_keys_ignored(self, tmp_path: Path) -> None:
-        cfg = self._write(tmp_path, """\
+        cfg = self._write(
+            tmp_path,
+            """\
             [shrinkwrap]
             default_level = "condense"
             totally_unknown_key = "whatever"
-        """)
+        """,
+        )
         assert cfg.default_level == "condense"
 
     def test_invalid_level_value_falls_back_to_none(self, tmp_path: Path) -> None:
-        cfg = self._write(tmp_path, """\
+        cfg = self._write(
+            tmp_path,
+            """\
             [shrinkwrap]
             default_level = "turbo_ultra_compress"
-        """)
+        """,
+        )
         assert cfg.default_level is None
 
 
@@ -110,7 +134,7 @@ class TestConfigInfluencesClassification:
         from shrinkwrap.parser import parse
 
         (tmp_path / "shrinkwrap.toml").write_text(
-            "[shrinkwrap]\nextra_immutable_keywords = [\"invariant\"]\n"
+            '[shrinkwrap]\nextra_immutable_keywords = ["invariant"]\n'
         )
         cfg = load_config(tmp_path)
         doc = parse("## Invariant Properties\nsome content\n", config=cfg)
@@ -121,7 +145,7 @@ class TestConfigInfluencesClassification:
         from shrinkwrap.parser import parse
 
         (tmp_path / "shrinkwrap.toml").write_text(
-            "[shrinkwrap]\nextra_mutable_keywords = [\"roadmap\"]\n"
+            '[shrinkwrap]\nextra_mutable_keywords = ["roadmap"]\n'
         )
         cfg = load_config(tmp_path)
         doc = parse("## Product Roadmap\nsome content\n", config=cfg)

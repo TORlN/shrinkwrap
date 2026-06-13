@@ -1,4 +1,4 @@
-﻿"""Tests for compressor.py — normalize, condense, aggressive levels and idempotency."""
+"""Tests for compressor.py — normalize, condense, aggressive levels and idempotency."""
 
 from __future__ import annotations
 
@@ -28,6 +28,7 @@ def make_section(
 # Immutable sections — never modified beyond whitespace normalization
 # ---------------------------------------------------------------------------
 
+
 class TestImmutableSections:
     def test_immutable_content_preserved_verbatim(self) -> None:
         body = "Never use eval().\n\nAlways validate input.\n"
@@ -55,6 +56,7 @@ class TestImmutableSections:
 # ---------------------------------------------------------------------------
 # Normalize level
 # ---------------------------------------------------------------------------
+
 
 class TestNormalizeLevel:
     def test_normalize_strips_trailing_spaces(self) -> None:
@@ -98,6 +100,7 @@ class TestNormalizeLevel:
 # Condense level
 # ---------------------------------------------------------------------------
 
+
 class TestCondenseLevel:
     def test_condense_includes_normalize(self) -> None:
         body = "line one   \n\n\n\nline two\n"
@@ -131,6 +134,7 @@ class TestCondenseLevel:
 # Aggressive level — requires explicit opt-in; stubs tested for interface
 # ---------------------------------------------------------------------------
 
+
 class TestAggressiveLevel:
     def test_aggressive_requires_allow_lossy_flag(self) -> None:
         # compress_section with aggressive level without allow_lossy should raise
@@ -159,10 +163,13 @@ class TestAggressiveLevel:
         assert "Do not commit secrets" in result
 
     def test_aggressive_smaller_than_condense(self) -> None:
-        body = "\n".join(
-            [f"This is filler sentence number {i}." for i in range(20)]
-            + ["Never use eval() under any circumstances."]
-        ) + "\n"
+        body = (
+            "\n".join(
+                [f"This is filler sentence number {i}." for i in range(20)]
+                + ["Never use eval() under any circumstances."]
+            )
+            + "\n"
+        )
         s_agg = make_section(body=body, compression="aggressive")
         s_cond = make_section(body=body, compression="condense")
         result_agg = compress_section(s_agg, allow_lossy=True)
@@ -173,6 +180,7 @@ class TestAggressiveLevel:
 # ---------------------------------------------------------------------------
 # Idempotency
 # ---------------------------------------------------------------------------
+
 
 class TestIdempotency:
     @pytest.mark.parametrize("level", ["normalize", "condense"])

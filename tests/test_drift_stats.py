@@ -1,4 +1,4 @@
-﻿"""Tests for drift-check error visibility and the stats --json machine-readable output flag."""
+"""Tests for drift-check error visibility and the stats --json machine-readable output flag."""
 
 from __future__ import annotations
 
@@ -28,11 +28,13 @@ STATS_SOURCE = (
 # 2 — drift-check must warn when score_commit raises, not just swallow it
 # ---------------------------------------------------------------------------
 
+
 class TestDriftCheckErrorVisibility:
     def test_drift_check_warns_when_score_commit_raises(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """If score_commit raises an exception (not a timeout), a warning must be printed."""
+
         def boom(
             repo_root: Path, commit_sha: str = "HEAD", watched_paths: list[str] | None = None
         ) -> None:
@@ -52,6 +54,7 @@ class TestDriftCheckErrorVisibility:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """An error in drift scoring must not block the developer's workflow."""
+
         def boom(
             repo_root: Path, commit_sha: str = "HEAD", watched_paths: list[str] | None = None
         ) -> None:
@@ -65,6 +68,7 @@ class TestDriftCheckErrorVisibility:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """The warning must include enough context to diagnose the problem."""
+
         def boom(
             repo_root: Path, commit_sha: str = "HEAD", watched_paths: list[str] | None = None
         ) -> None:
@@ -99,15 +103,14 @@ class TestDriftCheckErrorVisibility:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """--hook-mode must also emit the warning so post-commit logs capture it."""
+
         def boom(
             repo_root: Path, commit_sha: str = "HEAD", watched_paths: list[str] | None = None
         ) -> None:
             raise RuntimeError("permission denied")
 
         monkeypatch.setattr("shrinkwrap.drift.score_commit", boom)
-        result = CliRunner().invoke(
-            cli, ["drift-check", "--repo", str(tmp_path), "--hook-mode"]
-        )
+        result = CliRunner().invoke(cli, ["drift-check", "--repo", str(tmp_path), "--hook-mode"])
         assert result.exit_code == 0
         output_lower = result.output.lower()
         assert (
@@ -121,6 +124,7 @@ class TestDriftCheckErrorVisibility:
 # ---------------------------------------------------------------------------
 # 4 — stats --json outputs machine-readable token counts
 # ---------------------------------------------------------------------------
+
 
 class TestStatsJsonFlag:
     def test_stats_json_exits_zero(self, tmp_path: Path) -> None:
@@ -144,9 +148,7 @@ class TestStatsJsonFlag:
         assert "sections" in parsed
         assert isinstance(parsed["sections"], list)
 
-    def test_stats_json_sections_have_expected_fields(
-        self, tmp_path: Path
-    ) -> None:
+    def test_stats_json_sections_have_expected_fields(self, tmp_path: Path) -> None:
         src = tmp_path / "CLAUDE.md"
         src.write_text(STATS_SOURCE)
         result = CliRunner().invoke(cli, ["stats", str(src), "--json"])
@@ -174,9 +176,7 @@ class TestStatsJsonFlag:
         assert "normalize" in parsed["projections"]
         assert "condense" in parsed["projections"]
 
-    def test_stats_json_projection_values_are_ints(
-        self, tmp_path: Path
-    ) -> None:
+    def test_stats_json_projection_values_are_ints(self, tmp_path: Path) -> None:
         src = tmp_path / "CLAUDE.md"
         src.write_text(STATS_SOURCE)
         result = CliRunner().invoke(cli, ["stats", str(src), "--json"])
@@ -184,27 +184,21 @@ class TestStatsJsonFlag:
         assert isinstance(parsed["projections"]["normalize"], int)
         assert isinstance(parsed["projections"]["condense"], int)
 
-    def test_stats_json_section_count_matches_source(
-        self, tmp_path: Path
-    ) -> None:
+    def test_stats_json_section_count_matches_source(self, tmp_path: Path) -> None:
         src = tmp_path / "CLAUDE.md"
         src.write_text(STATS_SOURCE)
         result = CliRunner().invoke(cli, ["stats", str(src), "--json"])
         parsed = json.loads(result.output)
         assert len(parsed["sections"]) == 2
 
-    def test_stats_without_json_still_shows_table(
-        self, tmp_path: Path
-    ) -> None:
+    def test_stats_without_json_still_shows_table(self, tmp_path: Path) -> None:
         src = tmp_path / "CLAUDE.md"
         src.write_text(STATS_SOURCE)
         result = CliRunner().invoke(cli, ["stats", str(src)])
         assert result.exit_code == 0
         assert "Section" in result.output or "section" in result.output.lower()
 
-    def test_stats_json_output_has_no_rich_markup(
-        self, tmp_path: Path
-    ) -> None:
+    def test_stats_json_output_has_no_rich_markup(self, tmp_path: Path) -> None:
         src = tmp_path / "CLAUDE.md"
         src.write_text(STATS_SOURCE)
         result = CliRunner().invoke(cli, ["stats", str(src), "--json"])

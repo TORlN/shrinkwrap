@@ -1,4 +1,4 @@
-﻿"""
+"""
 Edge-case and robustness tests — RED until bugs are fixed.
 
 Bugs targeted:
@@ -37,6 +37,7 @@ from shrinkwrap.schema import serialize, verify
 # B1 — fenced code blocks must not be split on heading-like lines
 # ---------------------------------------------------------------------------
 
+
 class TestCodeBlockHeadingProtection:
     def test_hash_line_inside_backtick_fence_not_split(self) -> None:
         text = (
@@ -66,48 +67,25 @@ class TestCodeBlockHeadingProtection:
         assert len(doc.sections) == 1
 
     def test_fence_at_document_preamble_not_split(self) -> None:
-        text = (
-            "```\n"
-            "## Not a real heading\n"
-            "```\n\n"
-            "## Real Heading\n"
-            "content\n"
-        )
+        text = "```\n## Not a real heading\n```\n\n## Real Heading\ncontent\n"
         doc = parse(text)
         # Only one section — the preamble code block must not create a section
         assert len(doc.sections) == 1
         assert doc.sections[0].heading == "Real Heading"
 
     def test_unclosed_fence_treats_rest_as_code(self) -> None:
-        text = (
-            "## Setup\n"
-            "```python\n"
-            "## Inside unclosed fence\n"
-            "code continues\n"
-        )
+        text = "## Setup\n```python\n## Inside unclosed fence\ncode continues\n"
         doc = parse(text)
         assert len(doc.sections) == 1
         assert "## Inside unclosed fence" in doc.sections[0].body
 
     def test_tilde_fence_also_protected(self) -> None:
-        text = (
-            "## Notes\n"
-            "~~~\n"
-            "## Not a heading\n"
-            "~~~\n"
-        )
+        text = "## Notes\n~~~\n## Not a heading\n~~~\n"
         doc = parse(text)
         assert len(doc.sections) == 1
 
     def test_heading_after_closed_fence_is_split(self) -> None:
-        text = (
-            "## First\n"
-            "```\n"
-            "code\n"
-            "```\n"
-            "## Second\n"
-            "content\n"
-        )
+        text = "## First\n```\ncode\n```\n## Second\ncontent\n"
         doc = parse(text)
         assert len(doc.sections) == 2
         assert doc.sections[0].heading == "First"
@@ -124,17 +102,16 @@ class TestCodeBlockHeadingProtection:
 # B2 — duplicate section IDs must not collide in VTBF output
 # ---------------------------------------------------------------------------
 
+
 class TestDuplicateSectionIDs:
     def _doc_with_duplicate_headings(self) -> str:
-        return (
-            "## Current Status\nfirst occurrence\n"
-            "## Current Status\nsecond occurrence\n"
-        )
+        return "## Current Status\nfirst occurrence\n## Current Status\nsecond occurrence\n"
 
     def test_duplicate_headings_produce_unique_ids(self) -> None:
         doc = parse(self._doc_with_duplicate_headings())
         vtbf = serialize(doc, "test.md", self._doc_with_duplicate_headings())
         import re
+
         ids = re.findall(r'id="([^"]+)"', vtbf)
         assert len(ids) == len(set(ids)), f"Duplicate IDs found: {ids}"
 
@@ -149,6 +126,7 @@ class TestDuplicateSectionIDs:
         doc = parse(text)
         vtbf = serialize(doc, "test.md", text)
         import re
+
         ids = re.findall(r'id="([^"]+)"', vtbf)
         assert len(ids) == 3
         assert len(set(ids)) == 3
@@ -167,6 +145,7 @@ class TestDuplicateSectionIDs:
 # ---------------------------------------------------------------------------
 # B3 — invalid compression annotation value warns, falls back gracefully
 # ---------------------------------------------------------------------------
+
 
 class TestInvalidAnnotationCompression:
     def test_invalid_compression_value_warns(self) -> None:
@@ -199,14 +178,10 @@ class TestInvalidAnnotationCompression:
 # B4 — nested bullet lists: indented items must not be deduped with parent
 # ---------------------------------------------------------------------------
 
+
 class TestNestedBulletDeduplication:
     def test_nested_bullets_not_deduped_with_parent(self) -> None:
-        body = (
-            "- item\n"
-            "  - nested item\n"
-            "  - another nested item\n"
-            "- item\n"
-        )
+        body = "- item\n  - nested item\n  - another nested item\n- item\n"
         s = Section(heading="List", level=2, body=body, classification="mutable")
         result = compress_section(s)
         assert "nested item" in result
@@ -230,6 +205,7 @@ class TestNestedBulletDeduplication:
 # ---------------------------------------------------------------------------
 # B5 — Windows CRLF line endings
 # ---------------------------------------------------------------------------
+
 
 class TestCRLFLineEndings:
     def test_crlf_front_matter_parsed(self) -> None:
@@ -256,6 +232,7 @@ class TestCRLFLineEndings:
 # B6 — Unicode headings
 # ---------------------------------------------------------------------------
 
+
 class TestUnicodeHeadings:
     def test_unicode_heading_text_preserved(self) -> None:
         doc = parse("## Règles de Sécurité\ncontent\n")
@@ -278,6 +255,7 @@ class TestUnicodeHeadings:
 # ---------------------------------------------------------------------------
 # B7 + B8 — empty / whitespace-only bodies
 # ---------------------------------------------------------------------------
+
 
 class TestEmptyAndWhitespaceBodies:
     def test_empty_body_compresses_to_empty(self) -> None:
@@ -317,6 +295,7 @@ class TestEmptyAndWhitespaceBodies:
 # B9 — compress on already-compressed file is idempotent (CLI)
 # ---------------------------------------------------------------------------
 
+
 class TestCLIIdempotency:
     def test_compress_twice_same_section_count(self, tmp_path: Path) -> None:
         runner = CliRunner()
@@ -354,6 +333,7 @@ class TestCLIIdempotency:
 # B10 — expand of a non-VTBF file exits non-zero
 # ---------------------------------------------------------------------------
 
+
 class TestExpandNonVTBF:
     def test_expand_plain_markdown_exits_nonzero(self, tmp_path: Path) -> None:
         runner = CliRunner()
@@ -375,6 +355,7 @@ class TestExpandNonVTBF:
 # B11 — verify handles VTBF with no immutable sections
 # ---------------------------------------------------------------------------
 
+
 class TestVerifyAllMutable:
     def test_all_mutable_vtbf_passes_verify(self, tmp_path: Path) -> None:
         runner = CliRunner()
@@ -389,6 +370,7 @@ class TestVerifyAllMutable:
 # ---------------------------------------------------------------------------
 # B12 — annotation at EOF with no following heading
 # ---------------------------------------------------------------------------
+
 
 class TestAnnotationAtEOF:
     def test_annotation_at_end_of_file_no_crash(self) -> None:
@@ -407,6 +389,7 @@ class TestAnnotationAtEOF:
 # Property: expand(compress(x)) contains same headings as x
 # ---------------------------------------------------------------------------
 
+
 class TestExpandCompressProperty:
     SOURCES = [
         "## Alpha\ncontent\n## Beta\ncontent\n",
@@ -415,9 +398,7 @@ class TestExpandCompressProperty:
     ]
 
     @pytest.mark.parametrize("source", SOURCES)
-    def test_expand_contains_original_headings(
-        self, source: str, tmp_path: Path
-    ) -> None:
+    def test_expand_contains_original_headings(self, source: str, tmp_path: Path) -> None:
         import re
 
         runner = CliRunner()

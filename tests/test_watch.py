@@ -1,4 +1,4 @@
-﻿"""
+"""
 TDD tests for the `shrinkwrap watch` command.
 
 Behaviour under test:
@@ -20,13 +20,14 @@ from click.testing import CliRunner
 
 from shrinkwrap.cli import _watch_loop, cli
 
-POLL = 0.05   # fast interval for tests
+POLL = 0.05  # fast interval for tests
 SETTLE = 0.35  # time to let the watcher detect + act
 
 
 # ---------------------------------------------------------------------------
 # CLI surface
 # ---------------------------------------------------------------------------
+
 
 class TestWatchCLISurface:
     def test_watch_help_exits_zero(self) -> None:
@@ -65,6 +66,7 @@ class TestWatchCLISurface:
 # Core watch loop behaviour
 # ---------------------------------------------------------------------------
 
+
 class TestWatchLoop:
     def test_stop_event_terminates_loop(self, tmp_path: Path) -> None:
         src = tmp_path / "CLAUDE.md"
@@ -95,9 +97,9 @@ class TestWatchLoop:
             daemon=True,
         )
         t.start()
-        time.sleep(0.15)                        # let watcher record baseline mtime
+        time.sleep(0.15)  # let watcher record baseline mtime
         src.write_text("## Status\n- changed\n")
-        time.sleep(SETTLE)                      # let watcher detect + compress
+        time.sleep(SETTLE)  # let watcher detect + compress
         stop.set()
         t.join(timeout=2.0)
 
@@ -115,7 +117,7 @@ class TestWatchLoop:
             daemon=True,
         )
         t.start()
-        time.sleep(SETTLE)                      # wait — but don't touch the file
+        time.sleep(SETTLE)  # wait — but don't touch the file
         stop.set()
         t.join(timeout=2.0)
 
@@ -136,7 +138,7 @@ class TestWatchLoop:
         t.start()
         time.sleep(0.15)
         src.write_text("## Status\n- edited\n")
-        time.sleep(SETTLE * 2)                  # plenty of time for a second pass
+        time.sleep(SETTLE * 2)  # plenty of time for a second pass
         stop.set()
         t.join(timeout=2.0)
 
@@ -146,10 +148,7 @@ class TestWatchLoop:
 
     def test_respects_level_condense(self, tmp_path: Path) -> None:
         src = tmp_path / "CLAUDE.md"
-        src.write_text(
-            "## Section A\n- shared\n- only A\n"
-            "## Section B\n- shared\n- only B\n"
-        )
+        src.write_text("## Section A\n- shared\n- only A\n## Section B\n- shared\n- only B\n")
 
         stop = threading.Event()
         t = threading.Thread(
@@ -162,8 +161,7 @@ class TestWatchLoop:
         time.sleep(0.15)
         # Touch file to trigger compression
         src.write_text(
-            "## Section A\n- shared\n- only A\n"
-            "## Section B\n- shared\n- only B\n- new item\n"
+            "## Section A\n- shared\n- only A\n## Section B\n- shared\n- only B\n- new item\n"
         )
         time.sleep(SETTLE)
         stop.set()
@@ -177,8 +175,7 @@ class TestWatchLoop:
     def test_immutable_content_preserved_on_recompress(self, tmp_path: Path) -> None:
         src = tmp_path / "CLAUDE.md"
         src.write_text(
-            "<!-- shrinkwrap: immutable -->\n## Rules\nNever use eval().\n"
-            "## Status\n- ok\n"
+            "<!-- shrinkwrap: immutable -->\n## Rules\nNever use eval().\n## Status\n- ok\n"
         )
 
         stop = threading.Event()
@@ -191,8 +188,7 @@ class TestWatchLoop:
         t.start()
         time.sleep(0.15)
         src.write_text(
-            "<!-- shrinkwrap: immutable -->\n## Rules\nNever use eval().\n"
-            "## Status\n- updated\n"
+            "<!-- shrinkwrap: immutable -->\n## Rules\nNever use eval().\n## Status\n- updated\n"
         )
         time.sleep(SETTLE)
         stop.set()
@@ -203,9 +199,7 @@ class TestWatchLoop:
     def test_recompress_output_passes_verify(self, tmp_path: Path) -> None:
         runner = CliRunner()
         src = tmp_path / "CLAUDE.md"
-        src.write_text(
-            "<!-- shrinkwrap: immutable -->\n## Rules\nNever.\n## Status\n- ok\n"
-        )
+        src.write_text("<!-- shrinkwrap: immutable -->\n## Rules\nNever.\n## Status\n- ok\n")
 
         stop = threading.Event()
         t = threading.Thread(
@@ -216,9 +210,7 @@ class TestWatchLoop:
         )
         t.start()
         time.sleep(0.15)
-        src.write_text(
-            "<!-- shrinkwrap: immutable -->\n## Rules\nNever.\n## Status\n- updated\n"
-        )
+        src.write_text("<!-- shrinkwrap: immutable -->\n## Rules\nNever.\n## Status\n- updated\n")
         time.sleep(SETTLE)
         stop.set()
         t.join(timeout=2.0)
@@ -226,9 +218,7 @@ class TestWatchLoop:
         result = runner.invoke(cli, ["verify", str(src)])
         assert result.exit_code == 0
 
-    def test_already_compressed_file_recompresses_transparently(
-        self, tmp_path: Path
-    ) -> None:
+    def test_already_compressed_file_recompresses_transparently(self, tmp_path: Path) -> None:
         """Watching a pre-compressed VTBF file: a new plain-source write must
         produce valid single-schema VTBF, not a double-compressed file."""
         runner = CliRunner()

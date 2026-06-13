@@ -32,9 +32,7 @@ def extract_public_symbols(source: str) -> set[str]:
     return symbols
 
 
-def compute_symbol_drift(
-    before: str, after: str
-) -> tuple[list[str], list[str], list[str]]:
+def compute_symbol_drift(before: str, after: str) -> tuple[list[str], list[str], list[str]]:
     """
     Compare public symbol sets. Returns (added, removed, renamed).
     renamed is always empty — rename detection is not implemented.
@@ -47,9 +45,7 @@ def compute_symbol_drift(
     return added, removed, []
 
 
-_CONFIG_FILES = frozenset(
-    ["pyproject.toml", "setup.cfg", "setup.py", "package.json", "Cargo.toml"]
-)
+_CONFIG_FILES = frozenset(["pyproject.toml", "setup.cfg", "setup.py", "package.json", "Cargo.toml"])
 _SOURCE_EXTS = frozenset([".py", ".ts", ".js", ".go", ".rs", ".java"])
 _TEST_PATTERNS = ("test_", "_test.", "spec.", ".spec.")
 
@@ -79,17 +75,12 @@ def score_commit(
     If watched_paths is provided, only files under those paths are analyzed.
     """
     parent = f"{commit_sha}~1"
-    changed_files_raw = _git_run(
-        ["diff", "--name-only", f"{parent}..{commit_sha}"], cwd=repo_root
-    )
+    changed_files_raw = _git_run(["diff", "--name-only", f"{parent}..{commit_sha}"], cwd=repo_root)
     changed_files = [f.strip() for f in changed_files_raw.splitlines() if f.strip()]
 
     # Filter to watched paths if specified (non-empty list)
     if watched_paths:
-        changed_files = [
-            f for f in changed_files
-            if any(f.startswith(wp) for wp in watched_paths)
-        ]
+        changed_files = [f for f in changed_files if any(f.startswith(wp) for wp in watched_paths)]
 
     all_added: list[str] = []
     all_removed: list[str] = []

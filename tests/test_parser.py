@@ -1,4 +1,4 @@
-﻿"""Tests for parser.py — front-matter extraction, section splitting, and classification."""
+"""Tests for parser.py — front-matter extraction, section splitting, and classification."""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from shrinkwrap.parser import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def section_by_heading(doc: ParsedDocument, heading: str) -> Section:
     for s in doc.sections:
         if s.heading == heading:
@@ -27,6 +28,7 @@ def section_by_heading(doc: ParsedDocument, heading: str) -> Section:
 # ---------------------------------------------------------------------------
 # Front-matter extraction
 # ---------------------------------------------------------------------------
+
 
 class TestFrontMatterExtraction:
     def test_no_front_matter(self) -> None:
@@ -66,6 +68,7 @@ class TestFrontMatterExtraction:
 # ---------------------------------------------------------------------------
 # Section splitting
 # ---------------------------------------------------------------------------
+
 
 class TestSectionSplitting:
     def test_single_section(self) -> None:
@@ -108,6 +111,7 @@ class TestSectionSplitting:
 # Classification — Signal 1: explicit annotation
 # ---------------------------------------------------------------------------
 
+
 class TestClassificationAnnotation:
     def test_annotation_immutable(self) -> None:
         text = "<!-- shrinkwrap: immutable -->\n## Security Rules\ncontent\n"
@@ -124,22 +128,14 @@ class TestClassificationAnnotation:
         assert s.annotation_source is True
 
     def test_annotation_applies_to_next_section_only(self) -> None:
-        text = (
-            "<!-- shrinkwrap: immutable -->\n"
-            "## Section A\ncontent\n"
-            "## Section B\ncontent\n"
-        )
+        text = "<!-- shrinkwrap: immutable -->\n## Section A\ncontent\n## Section B\ncontent\n"
         doc = parse(text)
         assert section_by_heading(doc, "Section A").classification == "immutable"
         # Section B has no annotation — classification driven by other signals
         assert section_by_heading(doc, "Section B").classification != "immutable"
 
     def test_annotation_between_sections(self) -> None:
-        text = (
-            "## Section A\ncontent\n"
-            "<!-- shrinkwrap: immutable -->\n"
-            "## Section B\ncontent\n"
-        )
+        text = "## Section A\ncontent\n<!-- shrinkwrap: immutable -->\n## Section B\ncontent\n"
         doc = parse(text)
         # Section A should NOT be immutable (annotation was for B)
         assert section_by_heading(doc, "Section A").classification != "immutable"
@@ -155,6 +151,7 @@ class TestClassificationAnnotation:
 # ---------------------------------------------------------------------------
 # Classification — Signal 2: front-matter section lists
 # ---------------------------------------------------------------------------
+
 
 class TestClassificationFrontMatter:
     def test_immutable_via_front_matter(self) -> None:
@@ -203,25 +200,32 @@ class TestClassificationFrontMatter:
 # Classification — Signal 3: heading text heuristics
 # ---------------------------------------------------------------------------
 
+
 class TestClassificationHeuristics:
-    @pytest.mark.parametrize("heading", [
-        "Security Rules",
-        "Coding Conventions",
-        "Architecture Patterns",
-        "Forbidden Operations",
-        "Constraints",
-    ])
+    @pytest.mark.parametrize(
+        "heading",
+        [
+            "Security Rules",
+            "Coding Conventions",
+            "Architecture Patterns",
+            "Forbidden Operations",
+            "Constraints",
+        ],
+    )
     def test_immutable_keywords_detected(self, heading: str) -> None:
         doc = parse(f"## {heading}\nsome content here\n")
         assert section_by_heading(doc, heading).classification == "immutable"
 
-    @pytest.mark.parametrize("heading", [
-        "Current Status",
-        "Recent Changes",
-        "Sprint Progress",
-        "Todo List",
-        "Changelog",
-    ])
+    @pytest.mark.parametrize(
+        "heading",
+        [
+            "Current Status",
+            "Recent Changes",
+            "Sprint Progress",
+            "Todo List",
+            "Changelog",
+        ],
+    )
     def test_mutable_keywords_detected(self, heading: str) -> None:
         doc = parse(f"## {heading}\nsome content here\n")
         assert section_by_heading(doc, heading).classification == "mutable"
@@ -245,6 +249,7 @@ class TestClassificationHeuristics:
 # ---------------------------------------------------------------------------
 # Classification — Signal 4: structural heuristics
 # ---------------------------------------------------------------------------
+
 
 class TestClassificationStructural:
     def test_bullet_only_section_is_mutable(self) -> None:
@@ -270,6 +275,7 @@ class TestClassificationStructural:
 # Edge cases
 # ---------------------------------------------------------------------------
 
+
 class TestEdgeCases:
     def test_heading_with_trailing_hashes(self) -> None:
         doc = parse("## Heading Text ##\ncontent\n")
@@ -292,11 +298,7 @@ class TestEdgeCases:
         assert s.annotation_source is False
 
     def test_multiple_annotations_last_wins(self) -> None:
-        text = (
-            "<!-- shrinkwrap: immutable -->\n"
-            "<!-- shrinkwrap: mutable -->\n"
-            "## Section\ncontent\n"
-        )
+        text = "<!-- shrinkwrap: immutable -->\n<!-- shrinkwrap: mutable -->\n## Section\ncontent\n"
         doc = parse(text)
         s = section_by_heading(doc, "Section")
         assert s.classification == "mutable"
