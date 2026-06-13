@@ -24,7 +24,7 @@ console = Console()
 try:
     from importlib.metadata import version as _pkg_version
 
-    _VERSION = _pkg_version("shrinkwrap")
+    _VERSION = _pkg_version("shrnkwrp")
 except Exception:
     _VERSION = "0.0.0"
 
