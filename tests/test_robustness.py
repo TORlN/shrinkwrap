@@ -203,8 +203,64 @@ class TestNestedBulletDeduplication:
 
 
 # ---------------------------------------------------------------------------
-# B5 — Windows CRLF line endings
+# B5 — Windows CRLF line endings (parser tests)
 # ---------------------------------------------------------------------------
+#
+# B5-SCHEMA — SHA-256 checksum stability under Windows CRLF (schema.py)
+# When git autocrlf=true converts a VTBF file's line endings to CRLF on checkout,
+# verify() must still produce a valid result because the stored checksum was
+# computed from LF-normalized content in serialize().
+# ---------------------------------------------------------------------------
+
+
+class TestCRLFChecksumStability:
+    """CRLF normalisation in SHA-256 checksum pipeline (RED until schema.py is fixed)."""
+
+    def test_crlf_vtbf_passes_verify(self) -> None:
+        """FAILS currently: verify() computes checksum on CRLF bytes → mismatch."""
+        source = "<!-- shrinkwrap: immutable -->\n## Rules\nNever do it.\n"
+        doc = parse(source)
+        vtbf_lf = serialize(doc, "test.md", source)
+
+        # Simulate git autocrlf=true converting the stored VTBF file to CRLF on checkout.
+        vtbf_crlf = vtbf_lf.replace("\n", "\r\n")
+
+        result = verify(vtbf_crlf)
+        assert result.valid is True, f"CRLF VTBF failed verify: {result.errors}"
+
+    def test_crlf_and_lf_checksums_are_identical(self) -> None:
+        """Checksum stored by serialize() must be platform-independent."""
+        source = "<!-- shrinkwrap: immutable -->\n## Security\nNever call eval().\n## Notes\n- ok\n"
+        doc = parse(source)
+        vtbf_lf = serialize(doc, "test.md", source)
+        vtbf_crlf = vtbf_lf.replace("\n", "\r\n")
+
+        import re
+
+        lf_checksums = re.findall(r'checksum="([^"]+)"', vtbf_lf)
+        crlf_checksums = re.findall(r'checksum="([^"]+)"', vtbf_crlf)
+        # The checksums embedded in the CRLF version are the same as in the LF version
+        # because serialize() always normalises to LF before hashing.
+        assert lf_checksums == crlf_checksums
+
+    def test_mixed_crlf_immutable_section_verify(self) -> None:
+        """Multiple immutable sections all verify when the VTBF file has CRLF endings."""
+        source = (
+            "<!-- shrinkwrap: immutable -->\n## Rules\nNever do X.\n"
+            "<!-- shrinkwrap: immutable -->\n## Constraints\nAlways do Y.\n"
+        )
+        doc = parse(source)
+        vtbf_crlf = serialize(doc, "test.md", source).replace("\n", "\r\n")
+        result = verify(vtbf_crlf)
+        assert result.valid is True, f"Errors: {result.errors}"
+
+    def test_lf_vtbf_still_passes_verify_after_normalization(self) -> None:
+        """Normalizing a file that already has LF must not break anything."""
+        source = "<!-- shrinkwrap: immutable -->\n## Setup\nDo this.\n"
+        doc = parse(source)
+        vtbf = serialize(doc, "test.md", source)
+        result = verify(vtbf)
+        assert result.valid is True
 
 
 class TestCRLFLineEndings:

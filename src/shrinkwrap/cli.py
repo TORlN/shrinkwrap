@@ -508,6 +508,47 @@ def upgrade(vtbf_file: str) -> None:
     )
 
 
+@cli.command()
+@click.argument("directory", type=click.Path(exists=True), required=False, default=None)
+@click.option("--output", "-o", default=None, help="Output file (default: CONSOLIDATED.md in the target directory).")
+@click.option("--dry-run", is_flag=True, default=False, help="Print merged output to stdout; do not write a file.")
+def consolidate(directory: str | None, output: str | None, dry_run: bool) -> None:
+    """Discover and consolidate all agentic instruction files in a directory.
+
+    Crawls DIRECTORY (default: current directory) for Markdown files that carry
+    agentic signatures — CLAUDE.md, .cursorrules, shrinkwrap annotations, or
+    recognised YAML front-matter keys.  All discovered files are parsed, their
+    sections deduplicated across files, and the result written to a single
+    master instruction file.
+    """
+    from .consolidate import discover_agentic_files, merge_documents
+
+    root = Path(directory).resolve() if directory else Path.cwd()
+    found = discover_agentic_files(root)
+
+    if not found:
+        console.print(f"[yellow]No agentic instruction files found in {root}[/yellow]")
+        return
+
+    console.print(f"Found {len(found)} agentic file(s):")
+    for f in found:
+        try:
+            rel = f.relative_to(root)
+        except ValueError:
+            rel = f
+        console.print(f"  {rel}")
+
+    merged = merge_documents(found)
+
+    if dry_run:
+        console.print(merged)
+        return
+
+    out_path = Path(output) if output else root / "CONSOLIDATED.md"
+    out_path.write_text(merged, encoding="utf-8")
+    console.print(f"[green]Consolidated[/green] {len(found)} file(s) → {out_path.name}")
+
+
 @cli.command("install-hooks")
 @click.option("--repo", default=".", help="Path to git repo root", show_default=True)
 @click.option("--force", is_flag=True, default=False, help="Overwrite an existing hook.")

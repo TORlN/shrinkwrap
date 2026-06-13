@@ -140,6 +140,51 @@ shrinkwrap drift-check [--repo .]
 
 Scores how much the last commit drifted from what your instruction file describes. Uses AST diffing on Python files (stdlib `ast` — no extra dependencies) so internal refactors produce zero signal.
 
+Drift analysis reads file content directly from the git index (staged / committed state) rather than from the working tree, so mid-edit dirty files on disk never pollute the score. Malformed Python files (syntax errors) are skipped with a warning rather than crashing the hook.
+
+### `consolidate`
+
+```
+shrinkwrap consolidate [directory] [options]
+```
+
+Discovers all agentic instruction files under `directory` (default: current working directory), merges them into a single unified master file, and deduplicates sections across files.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--output / -o` | `CONSOLIDATED.md` in the target directory | Output file path |
+| `--dry-run` | off | Print merged output to stdout; do not write a file |
+
+**Agentic file detection**
+
+A file is treated as an agentic instruction file when it matches any of the following signatures:
+
+| Signature | Examples |
+|-----------|---------|
+| Filename match | `CLAUDE.md`, `CLAUDE.*.md`, `.cursorrules`, `*.cursorrules`, `SYSTEM_PROMPT.md`, `INSTRUCTIONS.md`, `AGENTS.md` |
+| `<!-- shrinkwrap: ... -->` annotation present anywhere in the file | Any file previously compressed or annotated by ShrinkWrap |
+| YAML front-matter with an agentic key | `shrinkwrap_schema`, `model`, `instructions`, `rules`, `description`, `agent`, `system_prompt` |
+
+Directories named `.git`, `node_modules`, `__pycache__`, `.venv`, `venv`, `.tox`, and `.mypy_cache` are never crawled.
+
+**Deduplication strategy**
+
+- **Heading deduplication**: when two files share a heading (case-insensitive), the section from the first-discovered file wins and the duplicate is dropped.
+- **Cross-file bullet deduplication**: bullet-list lines already present in an earlier section are removed from later sections (same engine used by `--level condense`).
+
+**Example**
+
+```bash
+# Consolidate all agentic files in the current repo into one master file
+shrinkwrap consolidate
+
+# Preview without writing
+shrinkwrap consolidate --dry-run
+
+# Write to a custom path
+shrinkwrap consolidate --output MASTER_INSTRUCTIONS.md
+```
+
 ## Controlling classification with annotations
 
 By default ShrinkWrap classifies sections using heading text heuristics. Override with an HTML comment on the line immediately preceding the heading:
@@ -187,6 +232,8 @@ watched_paths = ["src/"]
 extra_immutable_keywords = ["invariant", "contract"]
 extra_mutable_keywords = ["backlog", "icebox"]
 ```
+
+**Note on Windows / CRLF:** ShrinkWrap normalises line endings internally before computing SHA-256 checksums, so `git autocrlf=true` (Windows) will not invalidate immutable-section checksums when files are checked out with CRLF endings.
 
 ## Output format (VTBF)
 

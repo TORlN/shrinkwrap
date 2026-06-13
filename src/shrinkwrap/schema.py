@@ -77,8 +77,11 @@ def serialize(
         original_content = heading_line + section.body
         compressed_content = heading_line + compressed_body
 
-        # Checksum covers the literal content that will appear in the file
+        # Checksum covers the literal content that will appear in the file.
+        # Normalise CRLF → LF before hashing so the stored checksum is
+        # platform-independent and survives git autocrlf round-trips.
         content_in_file = compressed_content.rstrip() + "\n"
+        content_in_file = content_in_file.replace("\r\n", "\n")
         is_protected = section.classification in ("immutable", "ambiguous")
         checksum = _sha256_short(content_in_file) if is_protected else ""
 
@@ -147,6 +150,10 @@ def verify(
     source_text: str | None = None,
 ) -> VerifyResult:
     """Verify a VTBF document's integrity."""
+    # Normalise CRLF → LF so that git autocrlf=true (Windows) doesn't invalidate
+    # checksums that were computed from LF-normalised content by serialize().
+    vtbf_text = vtbf_text.replace("\r\n", "\n")
+
     errors: list[str] = []
     warnings: list[str] = []
 

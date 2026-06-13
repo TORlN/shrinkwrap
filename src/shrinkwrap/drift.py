@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -64,6 +65,17 @@ def _git_file_at(commit: str, path: str, cwd: Path) -> str:
     return _git_run(["show", f"{commit}:{path}"], cwd)
 
 
+def _git_index_file(path: str, cwd: Path) -> str:
+    """Read a file from the git staging area (index stage 0, i.e. :0:<path>).
+
+    This is the primary source for the 'after' state in score_commit: it reads
+    exactly what was staged/committed, insulating the analysis from any dirty
+    working-tree edits the developer may have made while the hook was running.
+    Falls back to an empty string when the path has no index entry (e.g. deleted).
+    """
+    return _git_run(["show", f":0:{path}"], cwd)
+
+
 def score_commit(
     repo_root: Path,
     commit_sha: str = "HEAD",
@@ -103,12 +115,36 @@ def score_commit(
         if len(parts) == 2 and parts[0] not in (".", "src", "lib"):
             structure_changes.append(f"dir:{parts[0]}")
 
-        if ext not in _SOURCE_EXTS:
+        # Only Python files are analysed for public API drift; skip everything else explicitly.
+        if not fpath.endswith(".py"):
             continue
 
-        if ext == ".py":
-            before = _git_file_at(parent, fpath, repo_root)
-            after = _git_file_at(commit_sha, fpath, repo_root)
+        before = _git_file_at(parent, fpath, repo_root)
+        # Prefer the git index (staged content) for the after-state so the analysis
+        # is isolated from any dirty working-tree edits made after staging.
+        # Fall back to the commit tree when the index has no entry (e.g. file deleted).
+        after = _git_index_file(fpath, repo_root) or _git_file_at(commit_sha, fpath, repo_root)
+
+        # Detect syntax errors before delegating to compute_symbol_drift.
+        # extract_public_symbols() silently returns set() on SyntaxError, so we check
+        # here where we have the file path to include in the warning message.
+        syntax_ok = True
+        for source, label in ((before, "before"), (after, "after")):
+            if not source:
+                continue
+            try:
+                ast.parse(source)
+            except SyntaxError as exc:
+                print(
+                    f"[shrinkwrap] Warning: skipping {fpath} "
+                    f"({label} state has a syntax error: {exc}); "
+                    "continuing with remaining files.",
+                    file=sys.stderr,
+                )
+                syntax_ok = False
+                break
+
+        if syntax_ok:
             added, removed, _ = compute_symbol_drift(before, after)
             all_added.extend(added)
             all_removed.extend(removed)
