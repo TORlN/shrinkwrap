@@ -140,7 +140,9 @@ def _make_git_repo(root: Path) -> None:
     )
     subprocess.run(
         ["git", "config", "user.email", "test@example.com"],
-        cwd=root, check=True, capture_output=True,
+        cwd=root,
+        check=True,
+        capture_output=True,
     )
     subprocess.run(
         ["git", "config", "user.name", "Test"], cwd=root, check=True, capture_output=True
@@ -181,6 +183,7 @@ class TestScoreCommitNonPythonSkip:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """TypeScript IS in _SOURCE_EXTS but must never hit ast.parse."""
+
         def mock_run(args: list[str], cwd: Path) -> str:
             if "--name-only" in " ".join(args):
                 return "src/app.ts\nlib/utils.js\n"
@@ -252,6 +255,7 @@ class TestScoreCommitSyntaxErrorWarning:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """score_commit must return a valid DriftResult even if a .py file is malformed."""
+
         def mock_run(args: list[str], cwd: Path) -> str:
             if "--name-only" in " ".join(args):
                 return "bad.py\n"
@@ -267,6 +271,7 @@ class TestScoreCommitSyntaxErrorWarning:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """After a syntax error in broken.py, good.py must still be analyzed."""
+
         def mock_run(args: list[str], cwd: Path) -> str:
             if "--name-only" in " ".join(args):
                 return "broken.py\ngood.py\n"

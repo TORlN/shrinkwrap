@@ -33,26 +33,31 @@ class TestAgenticFileDetection:
     def test_claude_md_filename_is_agentic(self, tmp_path: Path) -> None:
         f = _write(tmp_path / "CLAUDE.md", "## Rules\nDo stuff.\n")
         from shrinkwrap.consolidate import is_agentic_file
+
         assert is_agentic_file(f) is True
 
     def test_cursorrules_filename_is_agentic(self, tmp_path: Path) -> None:
         f = _write(tmp_path / ".cursorrules", "## Rules\nDo cursor stuff.\n")
         from shrinkwrap.consolidate import is_agentic_file
+
         assert is_agentic_file(f) is True
 
     def test_dot_cursorrules_extension_is_agentic(self, tmp_path: Path) -> None:
         f = _write(tmp_path / "project.cursorrules", "## Rules\ncontent\n")
         from shrinkwrap.consolidate import is_agentic_file
+
         assert is_agentic_file(f) is True
 
     def test_claude_sw_md_pattern_is_agentic(self, tmp_path: Path) -> None:
         f = _write(tmp_path / "CLAUDE.sw.md", "## Rules\ncompressed\n")
         from shrinkwrap.consolidate import is_agentic_file
+
         assert is_agentic_file(f) is True
 
     def test_shrinkwrap_annotation_makes_file_agentic(self, tmp_path: Path) -> None:
         f = _write(tmp_path / "guide.md", "<!-- shrinkwrap: immutable -->\n## Rules\nNever.\n")
         from shrinkwrap.consolidate import is_agentic_file
+
         assert is_agentic_file(f) is True
 
     def test_shrinkwrap_schema_frontmatter_is_agentic(self, tmp_path: Path) -> None:
@@ -61,21 +66,25 @@ class TestAgenticFileDetection:
             '---\nshrinkwrap_schema: "1.0"\nsource_file: "CLAUDE.md"\n---\n## Rules\n',
         )
         from shrinkwrap.consolidate import is_agentic_file
+
         assert is_agentic_file(f) is True
 
     def test_plain_markdown_is_not_agentic(self, tmp_path: Path) -> None:
         f = _write(tmp_path / "blog_post.md", "# My Blog\nSome prose here.\n")
         from shrinkwrap.consolidate import is_agentic_file
+
         assert is_agentic_file(f) is False
 
     def test_plain_readme_is_not_agentic(self, tmp_path: Path) -> None:
         f = _write(tmp_path / "README.md", "# Project\nInstall with pip.\n")
         from shrinkwrap.consolidate import is_agentic_file
+
         assert is_agentic_file(f) is False
 
     def test_changelog_is_not_agentic(self, tmp_path: Path) -> None:
         f = _write(tmp_path / "CHANGELOG.md", "# Changelog\n## v1.0\n- initial release\n")
         from shrinkwrap.consolidate import is_agentic_file
+
         assert is_agentic_file(f) is False
 
 
@@ -91,6 +100,7 @@ class TestAgenticFileDiscovery:
         _write(tmp_path / "CLAUDE.md", "## Rules\nDo stuff.\n")
         _write(tmp_path / "README.md", "# Project\nNot agentic.\n")
         from shrinkwrap.consolidate import discover_agentic_files
+
         found = discover_agentic_files(tmp_path)
         names = [f.name for f in found]
         assert "CLAUDE.md" in names
@@ -100,6 +110,7 @@ class TestAgenticFileDiscovery:
         _write(tmp_path / "CLAUDE.md", "## Rules\nRoot.\n")
         _write(tmp_path / "subdir" / "CLAUDE.md", "## Rules\nSub.\n")
         from shrinkwrap.consolidate import discover_agentic_files
+
         found = discover_agentic_files(tmp_path)
         assert len(found) == 2
 
@@ -107,6 +118,7 @@ class TestAgenticFileDiscovery:
         _write(tmp_path / "CLAUDE.md", "## Rules\nLegit.\n")
         _write(tmp_path / ".git" / "CLAUDE.md", "## Rules\nGit internal.\n")
         from shrinkwrap.consolidate import discover_agentic_files
+
         found = discover_agentic_files(tmp_path)
         paths = [str(f) for f in found]
         assert not any(".git" in p for p in paths)
@@ -115,12 +127,14 @@ class TestAgenticFileDiscovery:
         _write(tmp_path / "CLAUDE.md", "## Rules\nLegit.\n")
         _write(tmp_path / "node_modules" / "pkg" / "CLAUDE.md", "## Rules\nPackage.\n")
         from shrinkwrap.consolidate import discover_agentic_files
+
         found = discover_agentic_files(tmp_path)
         skip_prefix = str(tmp_path / "node_modules")
         assert not any(str(f).startswith(skip_prefix) for f in found)
 
     def test_empty_directory_returns_empty_list(self, tmp_path: Path) -> None:
         from shrinkwrap.consolidate import discover_agentic_files
+
         assert discover_agentic_files(tmp_path) == []
 
 
@@ -136,6 +150,7 @@ class TestMergeDocuments:
         a = _write(tmp_path / "a.md", "## Alpha\ncontent A\n")
         b = _write(tmp_path / "b.md", "## Beta\ncontent B\n")
         from shrinkwrap.consolidate import merge_documents
+
         merged = merge_documents([a, b])
         assert "Alpha" in merged
         assert "Beta" in merged
@@ -144,6 +159,7 @@ class TestMergeDocuments:
         a = _write(tmp_path / "a.md", "## Security Rules\ncontent from A\n")
         b = _write(tmp_path / "b.md", "## Security Rules\ncontent from B\n")
         from shrinkwrap.consolidate import merge_documents
+
         merged = merge_documents([a, b])
         # Heading appears once (first-seen wins)
         assert merged.count("## Security Rules") == 1
@@ -152,6 +168,7 @@ class TestMergeDocuments:
         a = _write(tmp_path / "a.md", "## Rules\nContent from A.\n")
         b = _write(tmp_path / "b.md", "## Rules\nContent from B.\n")
         from shrinkwrap.consolidate import merge_documents
+
         merged = merge_documents([a, b])
         assert "Content from A" in merged
         assert "Content from B" not in merged
@@ -160,6 +177,7 @@ class TestMergeDocuments:
         a = _write(tmp_path / "a.md", "## Notes\n- shared bullet\n- unique to A\n")
         b = _write(tmp_path / "b.md", "## Extra\n- shared bullet\n- unique to B\n")
         from shrinkwrap.consolidate import merge_documents
+
         merged = merge_documents([a, b])
         # "shared bullet" should appear at most once
         assert merged.count("shared bullet") == 1
@@ -168,11 +186,13 @@ class TestMergeDocuments:
 
     def test_empty_file_list_returns_empty_string(self) -> None:
         from shrinkwrap.consolidate import merge_documents
+
         assert merge_documents([]) == ""
 
     def test_output_is_valid_markdown_with_headings(self, tmp_path: Path) -> None:
         a = _write(tmp_path / "CLAUDE.md", "## Setup\nInstall deps.\n## Usage\nRun it.\n")
         from shrinkwrap.consolidate import merge_documents
+
         merged = merge_documents([a])
         assert "## Setup" in merged
         assert "## Usage" in merged
@@ -232,6 +252,7 @@ class TestConsolidateCLI:
         runner = CliRunner()
         with runner.isolated_filesystem(temp_dir=tmp_path):
             import os
+
             os.chdir(tmp_path)
             result = runner.invoke(cli, ["consolidate"])
             assert result.exit_code == 0
