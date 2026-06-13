@@ -8,7 +8,8 @@ from typing import Any
 
 import yaml
 
-from .compressor import compress_document_sections
+from .compressor import compress_document_sections_counted
+from .metrics import CompressionMetrics
 from .parser import _FRONTMATTER_RE, ParsedDocument
 
 SCHEMA_VERSION = "1.0"
@@ -57,27 +58,27 @@ def _section_id(heading: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def serialize(
+def compress_with_metrics(
     doc: ParsedDocument,
     source_path: str,
     source_text: str,
     allow_lossy: bool = False,
-) -> str:
-    """Serialize a ParsedDocument into a VTBF markdown string."""
+) -> tuple[str, CompressionMetrics]:
+    """Serialize a ParsedDocument into VTBF format and return compression metrics."""
     total_original = 0
     total_compressed = 0
     section_blocks: list[str] = []
     seen_ids: set[str] = set()
 
-    # Pre-compute all bodies together so cross-section dedup runs for condense/aggressive.
-    compressed_bodies = compress_document_sections(doc.sections, allow_lossy=allow_lossy)
+    compressed_bodies, duplicate_bullets_removed = compress_document_sections_counted(
+        doc.sections, allow_lossy=allow_lossy
+    )
 
     for section, compressed_body in zip(doc.sections, compressed_bodies):
         heading_line = f"{'#' * section.level} {section.heading}\n"
         original_content = heading_line + section.body
         compressed_content = heading_line + compressed_body
 
-        # Checksum covers the literal content that will appear in the file.
         # Normalise CRLF → LF before hashing so the stored checksum is
         # platform-independent and survives git autocrlf round-trips.
         content_in_file = compressed_content.rstrip() + "\n"
@@ -136,7 +137,30 @@ def serialize(
     if doc.preamble.strip():
         parts.append(doc.preamble.rstrip() + "\n")
     parts.append("\n".join(section_blocks))
-    return "\n".join(parts) + "\n"
+    vtbf = "\n".join(parts) + "\n"
+
+    tokens_saved = total_original - total_compressed
+    metrics = CompressionMetrics(
+        files_processed=1,
+        tokens_before=total_original,
+        tokens_after=total_compressed,
+        tokens_saved=tokens_saved,
+        compression_pct=round(tokens_saved / max(total_original, 1) * 100, 1),
+        duplicate_sections_removed=0,
+        duplicate_bullets_removed=duplicate_bullets_removed,
+    )
+    return vtbf, metrics
+
+
+def serialize(
+    doc: ParsedDocument,
+    source_path: str,
+    source_text: str,
+    allow_lossy: bool = False,
+) -> str:
+    """Serialize a ParsedDocument into a VTBF markdown string."""
+    vtbf, _ = compress_with_metrics(doc, source_path, source_text, allow_lossy=allow_lossy)
+    return vtbf
 
 
 # ---------------------------------------------------------------------------

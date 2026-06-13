@@ -46,10 +46,11 @@ def _normalize(text: str) -> str:
     return text
 
 
-def _dedup_cross_section(sections_bodies: list[str]) -> list[str]:
-    """Remove bullet lines that already appeared in an earlier section."""
+def _dedup_cross_section_counted(sections_bodies: list[str]) -> tuple[list[str], int]:
+    """Remove duplicate bullet lines; return (deduped_bodies, removed_count)."""
     seen_bullets: set[str] = set()
     result: list[str] = []
+    removed_count = 0
     for body in sections_bodies:
         output_lines: list[str] = []
         for line in body.split("\n"):
@@ -58,11 +59,18 @@ def _dedup_cross_section(sections_bodies: list[str]) -> list[str]:
             if is_bullet:
                 key = re.sub(r"^[-*+]\s+|\d+\.\s+", "", stripped).lower().strip()
                 if key in seen_bullets:
+                    removed_count += 1
                     continue
                 seen_bullets.add(key)
             output_lines.append(line)
         result.append("\n".join(output_lines))
-    return result
+    return result, removed_count
+
+
+def _dedup_cross_section(sections_bodies: list[str]) -> list[str]:
+    """Remove bullet lines that already appeared in an earlier section."""
+    bodies, _ = _dedup_cross_section_counted(sections_bodies)
+    return bodies
 
 
 def _is_high_stakes(sentence: str) -> bool:
@@ -148,15 +156,12 @@ def compress_section(section: Section, allow_lossy: bool = False) -> str:
     return _relevance_prune(body)
 
 
-def compress_document_sections(sections: list[Section], allow_lossy: bool = False) -> list[str]:
-    """
-    Compress all sections together, applying cross-section deduplication
-    for the condense/aggressive levels.
-    """
-    # First pass: individual compression
+def compress_document_sections_counted(
+    sections: list[Section], allow_lossy: bool = False
+) -> tuple[list[str], int]:
+    """Compress all sections; return (bodies, duplicate_bullets_removed)."""
     bodies = [compress_section(s, allow_lossy=allow_lossy) for s in sections]
 
-    # Identify which sections are mutable and at condense+ level
     needs_cross_dedup = [
         s.classification not in ("immutable", "ambiguous")
         and s.compression in ("condense", "aggressive")
@@ -164,14 +169,22 @@ def compress_document_sections(sections: list[Section], allow_lossy: bool = Fals
     ]
 
     if not any(needs_cross_dedup):
-        return bodies
+        return bodies, 0
 
-    # Extract mutable bodies for cross-dedup
     mutable_indices = [i for i, nd in enumerate(needs_cross_dedup) if nd]
     mutable_bodies = [bodies[i] for i in mutable_indices]
-    deduped = _dedup_cross_section(mutable_bodies)
+    deduped, removed_count = _dedup_cross_section_counted(mutable_bodies)
 
     for idx, deduped_body in zip(mutable_indices, deduped):
         bodies[idx] = deduped_body
 
+    return bodies, removed_count
+
+
+def compress_document_sections(sections: list[Section], allow_lossy: bool = False) -> list[str]:
+    """
+    Compress all sections together, applying cross-section deduplication
+    for the condense/aggressive levels.
+    """
+    bodies, _ = compress_document_sections_counted(sections, allow_lossy=allow_lossy)
     return bodies

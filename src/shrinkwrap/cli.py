@@ -14,8 +14,9 @@ from rich.console import Console
 from rich.table import Table
 
 from .config import load_config
+from .metrics import CompressionMetrics
 from .parser import parse
-from .schema import serialize
+from .schema import compress_with_metrics, serialize
 from .schema import verify as verify_vtbf
 
 console = Console()
@@ -131,7 +132,7 @@ def compress(
             )
             sys.exit(1)
 
-    vtbf = serialize(doc, src_path.name, source_text, allow_lossy=allow_lossy)
+    vtbf, metrics = compress_with_metrics(doc, src_path.name, source_text, allow_lossy=allow_lossy)
 
     if effective_profile == "cursor":
         vtbf = _strip_front_matter(vtbf)
@@ -141,12 +142,8 @@ def compress(
     _maybe_warn_size(vtbf, source_text, effective_profile)
 
     if dry_run:
-        fm_ratio = _parse_ratio(vtbf)
-        section_count = vtbf.count("<!-- sw:section")
         console.print(vtbf)
-        console.print(
-            f"[dim]─── dry-run: {section_count} section(s), ratio: {fm_ratio:.0%} ───[/dim]"
-        )
+        _print_compress_metrics(metrics)
         return
 
     if backup:
@@ -165,6 +162,7 @@ def compress(
     console.print(
         f"[green]Compressed[/green] {src_path.name} -> {out_path.name} (ratio: {fm_ratio:.0%})"
     )
+    _print_compress_metrics(metrics)
 
 
 @cli.command()
@@ -521,7 +519,7 @@ def consolidate(directory: str | None, output: str | None, dry_run: bool) -> Non
     sections deduplicated across files, and the result written to a single
     master instruction file.
     """
-    from .consolidate import discover_agentic_files, merge_documents
+    from .consolidate import consolidate_with_metrics, discover_agentic_files
 
     root = Path(directory).resolve() if directory else Path.cwd()
     found = discover_agentic_files(root)
@@ -538,15 +536,17 @@ def consolidate(directory: str | None, output: str | None, dry_run: bool) -> Non
             rel = f
         console.print(f"  {rel}")
 
-    merged = merge_documents(found)
+    merged, metrics = consolidate_with_metrics(found)
 
     if dry_run:
         console.print(merged)
+        _print_consolidate_metrics(metrics)
         return
 
     out_path = Path(output) if output else root / "CONSOLIDATED.md"
     out_path.write_text(merged, encoding="utf-8")
     console.print(f"[green]Consolidated[/green] {len(found)} file(s) → {out_path.name}")
+    _print_consolidate_metrics(metrics)
 
 
 @cli.command("install-hooks")
@@ -736,6 +736,38 @@ def watch(
         _watch_loop(path, level, profile, allow_lossy, interval)
     except KeyboardInterrupt:
         console.print("\n[dim]Stopped watching.[/dim]")
+
+
+# ---------------------------------------------------------------------------
+# Metrics table helpers
+# ---------------------------------------------------------------------------
+
+
+def _print_compress_metrics(metrics: CompressionMetrics) -> None:
+    table = Table(title="Compression Metrics")
+    table.add_column("Metric", style="bold")
+    table.add_column("Value", justify="right")
+    table.add_row("Tokens before", str(metrics.tokens_before))
+    table.add_row("Tokens after", str(metrics.tokens_after))
+    table.add_row("Tokens saved", str(metrics.tokens_saved))
+    table.add_row("Compression", f"{metrics.compression_pct:.1f}%")
+    if metrics.duplicate_bullets_removed:
+        table.add_row("Duplicate bullets removed", str(metrics.duplicate_bullets_removed))
+    console.print(table)
+
+
+def _print_consolidate_metrics(metrics: CompressionMetrics) -> None:
+    table = Table(title="Consolidation Metrics")
+    table.add_column("Metric", style="bold")
+    table.add_column("Value", justify="right")
+    table.add_row("Files processed", str(metrics.files_processed))
+    table.add_row("Tokens before", str(metrics.tokens_before))
+    table.add_row("Tokens after", str(metrics.tokens_after))
+    table.add_row("Tokens saved", str(metrics.tokens_saved))
+    table.add_row("Compression", f"{metrics.compression_pct:.1f}%")
+    table.add_row("Duplicate sections removed", str(metrics.duplicate_sections_removed))
+    table.add_row("Duplicate bullets removed", str(metrics.duplicate_bullets_removed))
+    console.print(table)
 
 
 # ---------------------------------------------------------------------------

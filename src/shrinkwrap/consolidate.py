@@ -8,7 +8,8 @@ from pathlib import Path
 
 import yaml
 
-from .compressor import _dedup_cross_section
+from .compressor import _dedup_cross_section_counted
+from .metrics import CompressionMetrics
 from .parser import Section, parse
 
 # ---------------------------------------------------------------------------
@@ -119,6 +120,90 @@ def discover_agentic_files(root: Path) -> list[Path]:
 # ---------------------------------------------------------------------------
 
 
+def _approx_tokens(text: str) -> int:
+    return max(1, len(text) // 4)
+
+
+def consolidate_with_metrics(paths: list[Path]) -> tuple[str, CompressionMetrics]:
+    """Parse all *paths*, deduplicate, and return (merged_markdown, metrics).
+
+    tokens_before counts every section from every file (including dropped duplicates)
+    so the savings figure reflects the full consolidation benefit.
+    """
+    if not paths:
+        return "", CompressionMetrics(
+            files_processed=0,
+            tokens_before=0,
+            tokens_after=0,
+            tokens_saved=0,
+            compression_pct=0.0,
+            duplicate_sections_removed=0,
+            duplicate_bullets_removed=0,
+        )
+
+    all_sections: list[Section] = []
+    seen_headings: set[str] = set()
+    sections_encountered = 0
+    tokens_before = 0
+
+    for path in paths:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+
+        doc = parse(text)
+        for section in doc.sections:
+            sections_encountered += 1
+            tokens_before += _approx_tokens(section.body)
+            key = section.heading.lower().strip()
+            if key not in seen_headings:
+                seen_headings.add(key)
+                all_sections.append(section)
+
+    duplicate_sections_removed = sections_encountered - len(all_sections)
+
+    if not all_sections:
+        tokens_saved = tokens_before
+        return "", CompressionMetrics(
+            files_processed=len(paths),
+            tokens_before=tokens_before,
+            tokens_after=0,
+            tokens_saved=tokens_saved,
+            compression_pct=round(tokens_saved / max(tokens_before, 1) * 100, 1),
+            duplicate_sections_removed=duplicate_sections_removed,
+            duplicate_bullets_removed=0,
+        )
+
+    bodies = [s.body for s in all_sections]
+    deduped_bodies, duplicate_bullets_removed = _dedup_cross_section_counted(bodies)
+
+    tokens_after = sum(_approx_tokens(body) for body in deduped_bodies)
+    tokens_saved = max(0, tokens_before - tokens_after)
+    compression_pct = round(tokens_saved / max(tokens_before, 1) * 100, 1)
+
+    parts: list[str] = []
+    for section, body in zip(all_sections, deduped_bodies):
+        heading_line = f"{'#' * section.level} {section.heading}"
+        if body.strip():
+            parts.append(f"{heading_line}\n{body.rstrip()}")
+        else:
+            parts.append(heading_line)
+
+    merged = "\n\n".join(parts) + "\n"
+
+    metrics = CompressionMetrics(
+        files_processed=len(paths),
+        tokens_before=tokens_before,
+        tokens_after=tokens_after,
+        tokens_saved=tokens_saved,
+        compression_pct=compression_pct,
+        duplicate_sections_removed=duplicate_sections_removed,
+        duplicate_bullets_removed=duplicate_bullets_removed,
+    )
+    return merged, metrics
+
+
 def merge_documents(paths: list[Path]) -> str:
     """Parse all *paths*, deduplicate sections by heading, and return merged markdown.
 
@@ -129,35 +214,5 @@ def merge_documents(paths: list[Path]) -> str:
 
     Returns an empty string when *paths* is empty or yields no sections.
     """
-    all_sections: list[Section] = []
-    seen_headings: set[str] = set()
-
-    for path in paths:
-        try:
-            text = path.read_text(encoding="utf-8")
-        except OSError:
-            continue
-
-        doc = parse(text)
-        for section in doc.sections:
-            key = section.heading.lower().strip()
-            if key not in seen_headings:
-                seen_headings.add(key)
-                all_sections.append(section)
-
-    if not all_sections:
-        return ""
-
-    # Cross-section bullet deduplication using the existing condense infrastructure.
-    bodies = [s.body for s in all_sections]
-    deduped_bodies = _dedup_cross_section(bodies)
-
-    parts: list[str] = []
-    for section, body in zip(all_sections, deduped_bodies):
-        heading_line = f"{'#' * section.level} {section.heading}"
-        if body.strip():
-            parts.append(f"{heading_line}\n{body.rstrip()}")
-        else:
-            parts.append(heading_line)
-
-    return "\n\n".join(parts) + "\n"
+    merged, _ = consolidate_with_metrics(paths)
+    return merged
