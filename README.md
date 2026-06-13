@@ -118,6 +118,9 @@ Discovers all agentic instruction files under `directory` (default: current work
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--output / -o` | `CONSOLIDATED.md` in the target directory | Output file path |
+| `--level` | *(none)* | Apply compression to the merged output: `normalize`, `condense`, or `aggressive` |
+| `--allow-lossy` | off | Required for `--level aggressive` |
+| `--delete-sources` | off | Delete the discovered source files after consolidation (output file is preserved) |
 | `--dry-run` | off | Print merged output to stdout; do not write a file |
 
 After consolidating, a metrics table is printed showing files processed, tokens before and after, compression percentage, duplicate sections removed, and duplicate bullets removed.

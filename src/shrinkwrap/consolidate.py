@@ -8,7 +8,7 @@ from pathlib import Path
 
 import yaml
 
-from .compressor import _dedup_cross_section_counted
+from .compressor import _dedup_cross_section_counted, compress_document_sections_counted
 from .metrics import CompressionMetrics
 from .parser import Section, parse
 
@@ -124,12 +124,30 @@ def _approx_tokens(text: str) -> int:
     return max(1, len(text) // 4)
 
 
-def consolidate_with_metrics(paths: list[Path]) -> tuple[str, CompressionMetrics]:
+_VALID_LEVELS = frozenset(["normalize", "condense", "aggressive"])
+
+
+def consolidate_with_metrics(
+    paths: list[Path],
+    level: str | None = None,
+    allow_lossy: bool = False,
+) -> tuple[str, CompressionMetrics]:
     """Parse all *paths*, deduplicate, and return (merged_markdown, metrics).
 
     tokens_before counts every section from every file (including dropped duplicates)
     so the savings figure reflects the full consolidation benefit.
+
+    When *level* is set, mutable sections are compressed at that level after
+    heading-deduplication.  ``level="aggressive"`` requires ``allow_lossy=True``
+    or raises ValueError.
     """
+    if level is not None and level not in _VALID_LEVELS:
+        raise ValueError(f"Invalid level {level!r}. Must be one of {sorted(_VALID_LEVELS)}.")
+    if level == "aggressive" and not allow_lossy:
+        raise ValueError(
+            "level='aggressive' requires allow_lossy=True (it may discard prose content)."
+        )
+
     if not paths:
         return "", CompressionMetrics(
             files_processed=0,
@@ -175,8 +193,17 @@ def consolidate_with_metrics(paths: list[Path]) -> tuple[str, CompressionMetrics
             duplicate_bullets_removed=0,
         )
 
-    bodies = [s.body for s in all_sections]
-    deduped_bodies, duplicate_bullets_removed = _dedup_cross_section_counted(bodies)
+    if level is not None:
+        # Apply level to mutable sections, then route through compression pipeline.
+        for section in all_sections:
+            if section.classification not in ("immutable", "ambiguous"):
+                section.compression = level  # type: ignore[assignment]
+        deduped_bodies, duplicate_bullets_removed = compress_document_sections_counted(
+            all_sections, allow_lossy=allow_lossy
+        )
+    else:
+        bodies = [s.body for s in all_sections]
+        deduped_bodies, duplicate_bullets_removed = _dedup_cross_section_counted(bodies)
 
     tokens_after = sum(_approx_tokens(body) for body in deduped_bodies)
     tokens_saved = max(0, tokens_before - tokens_after)

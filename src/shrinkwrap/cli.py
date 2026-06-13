@@ -510,7 +510,32 @@ def upgrade(vtbf_file: str) -> None:
 @click.argument("directory", type=click.Path(exists=True), required=False, default=None)
 @click.option("--output", "-o", default=None, help="Output file (default: CONSOLIDATED.md).")
 @click.option("--dry-run", is_flag=True, default=False, help="Print to stdout; do not write file.")
-def consolidate(directory: str | None, output: str | None, dry_run: bool) -> None:
+@click.option(
+    "--level",
+    type=click.Choice(["normalize", "condense", "aggressive"]),
+    default=None,
+    help="Compression level to apply to the merged output.",
+)
+@click.option(
+    "--allow-lossy",
+    is_flag=True,
+    default=False,
+    help="Allow aggressive (lossy) compression (required for --level aggressive).",
+)
+@click.option(
+    "--delete-sources",
+    is_flag=True,
+    default=False,
+    help="Delete the discovered source files after consolidation (output file is preserved).",
+)
+def consolidate(
+    directory: str | None,
+    output: str | None,
+    dry_run: bool,
+    level: str | None,
+    allow_lossy: bool,
+    delete_sources: bool,
+) -> None:
     """Discover and consolidate all agentic instruction files in a directory.
 
     Crawls DIRECTORY (default: current directory) for Markdown files that carry
@@ -520,6 +545,13 @@ def consolidate(directory: str | None, output: str | None, dry_run: bool) -> Non
     master instruction file.
     """
     from .consolidate import consolidate_with_metrics, discover_agentic_files
+
+    if level == "aggressive" and not allow_lossy:
+        console.print(
+            "[red]Error:[/red] --level aggressive requires --allow-lossy "
+            "(it may discard prose content)."
+        )
+        sys.exit(1)
 
     root = Path(directory).resolve() if directory else Path.cwd()
     found = discover_agentic_files(root)
@@ -536,7 +568,7 @@ def consolidate(directory: str | None, output: str | None, dry_run: bool) -> Non
             rel = f
         console.print(f"  {rel}")
 
-    merged, metrics = consolidate_with_metrics(found)
+    merged, metrics = consolidate_with_metrics(found, level=level, allow_lossy=allow_lossy)
 
     if dry_run:
         console.print(merged)
@@ -547,6 +579,21 @@ def consolidate(directory: str | None, output: str | None, dry_run: bool) -> Non
     out_path.write_text(merged, encoding="utf-8")
     console.print(f"[green]Consolidated[/green] {len(found)} file(s) → {out_path.name}")
     _print_consolidate_metrics(metrics)
+
+    if delete_sources:
+        out_resolved = out_path.resolve()
+        deleted: list[Path] = []
+        for f in found:
+            if f.resolve() != out_resolved:
+                try:
+                    f.unlink()
+                    deleted.append(f)
+                except OSError:
+                    pass
+        if deleted:
+            console.print(
+                f"[dim]Deleted {len(deleted)} source file(s) (--delete-sources).[/dim]"
+            )
 
 
 @cli.command("install-hooks")
