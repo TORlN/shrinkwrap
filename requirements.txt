@@ -1,0 +1,10 @@
+click==8.4.1
+mistletoe==1.5.1
+PyYAML==6.0.3
+rich==15.0.0
+mypy==2.1.0
+mypy-extensions==1.1.0
+pytest==9.0.3
+pytest-asyncio==1.4.0
+ruff==0.15.17
+types-PyYAML==6.0.12.20260518
