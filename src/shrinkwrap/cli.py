@@ -163,7 +163,7 @@ def compress(
 
     fm_ratio = _parse_ratio(vtbf)
     console.print(
-        f"[green]Compressed[/green] {src_path.name} → {out_path.name} (ratio: {fm_ratio:.0%})"
+        f"[green]Compressed[/green] {src_path.name} -> {out_path.name} (ratio: {fm_ratio:.0%})"
     )
 
 
@@ -203,7 +203,7 @@ def expand(vtbf_file: str, output: str | None, in_place: bool) -> None:
         out_path = Path(output) if output else default_out
 
     out_path.write_text(text, encoding="utf-8")
-    console.print(f"[green]Expanded[/green] {vtbf_path.name} → {out_path.name}")
+    console.print(f"[green]Expanded[/green] {vtbf_path.name} -> {out_path.name}")
 
 
 @cli.command()
@@ -585,7 +585,7 @@ def drift_check(hook_mode: bool, repo: str) -> None:
 def _watch_loop(
     path: Path,
     level: str | None,
-    profile: str | None,  # None → read from shrinkwrap.toml or "claude"
+    profile: str | None,  # None = read from shrinkwrap.toml or "claude"
     allow_lossy: bool,
     interval: float,
     *,
