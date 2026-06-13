@@ -186,9 +186,9 @@ class TestVersionFromPackageMetadata:
         from importlib.metadata import version as pkg_version
 
         try:
-            expected = pkg_version("shrinkwrap")
+            expected = pkg_version("shrnkwrp")
         except PackageNotFoundError:
-            pytest.skip("shrinkwrap package not installed")
+            pytest.skip("shrnkwrp package not installed")
 
         result = CliRunner().invoke(cli, ["--version"])
         assert result.exit_code == 0

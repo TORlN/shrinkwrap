@@ -6,23 +6,33 @@ constraints byte-identical while compressing volatile status/todo sections.
 
 ```
 $ shrinkwrap stats CLAUDE.md
-┌─────────────────────────────────────────────┐
-│ Section              │ Class     │ Tokens    │
-│ Security Rules       │ immutable │ 312       │
-│ Architecture         │ immutable │ 198       │
-│ Current Sprint       │ mutable   │ 847       │
-│ Todo                 │ mutable   │ 423       │
-│ Total                │           │ 1780      │
-└─────────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│ Section              │ Class     │ Tokens     │
+│ Security Rules       │ immutable │ 312        │
+│ Architecture         │ immutable │ 198        │
+│ Current Sprint       │ mutable   │ 847        │
+│ Todo                 │ mutable   │ 423        │
+│ Total                │           │ 1780       │
+└──────────────────────────────────────────────┘
 
 $ shrinkwrap compress CLAUDE.md --level condense --in-place
-Compressed CLAUDE.md (ratio: 61%)
+Compressed CLAUDE.md -> CLAUDE.md (ratio: 61%)
+   Compression Metrics
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━┓
+┃ Metric                     ┃ Value ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━┩
+│ Tokens before              │  1780 │
+│ Tokens after               │  1087 │
+│ Tokens saved               │   693 │
+│ Compression                │ 38.9% │
+│ Duplicate bullets removed  │    12 │
+└────────────────────────────┴───────┘
 ```
 
 ## Installation
 
 ```bash
-pip install shrinkwrap
+pip install shrnkwrp
 ```
 
 Requires Python 3.11+.
@@ -38,6 +48,9 @@ shrinkwrap compress CLAUDE.md --in-place
 
 # Preview without writing anything
 shrinkwrap compress CLAUDE.md --dry-run
+
+# Consolidate all agentic files in the repo into a single master file
+shrinkwrap consolidate
 
 # Install a git hook that alerts you when your code drifts from your instructions
 shrinkwrap install-hooks
@@ -82,6 +95,8 @@ shrinkwrap compress <file> [options]
 | `--allow-lossy` | off | Required for `--level aggressive` |
 | `--dry-run` | off | Print to stdout; do not write file |
 
+After compressing, a metrics table is printed showing tokens before and after, tokens saved, compression percentage, and the number of duplicate bullets removed. The table appears after the file is written for `--output` and `--in-place`, and at the end of stdout for `--dry-run`.
+
 **Compression levels**
 
 | Level | What it does | Token savings | Semantic loss |
@@ -91,6 +106,58 @@ shrinkwrap compress <file> [options]
 | `aggressive` | `condense` + drops low-value prose (requires `--allow-lossy`) | ~40–60% | Moderate |
 
 Immutable sections (security rules, architecture) are never touched beyond whitespace normalization regardless of level.
+
+### `consolidate`
+
+```
+shrinkwrap consolidate [directory] [options]
+```
+
+Discovers all agentic instruction files under `directory` (default: current working directory), merges them into a single unified master file, and deduplicates sections and bullets across files.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--output / -o` | `CONSOLIDATED.md` in the target directory | Output file path |
+| `--dry-run` | off | Print merged output to stdout; do not write a file |
+
+After consolidating, a metrics table is printed showing files processed, tokens before and after, compression percentage, duplicate sections removed, and duplicate bullets removed.
+
+```
+$ shrinkwrap consolidate
+Found 2 agentic file(s):
+  AGENTS.md
+  CLAUDE.md
+Consolidated 2 file(s) → CONSOLIDATED.md
+        Consolidation Metrics
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━┓
+┃ Metric                     ┃ Value ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━┩
+│ Files processed            │     2 │
+│ Tokens before              │   892 │
+│ Tokens after               │   641 │
+│ Tokens saved               │   251 │
+│ Compression                │ 28.1% │
+│ Duplicate sections removed │     3 │
+│ Duplicate bullets removed  │     8 │
+└────────────────────────────┴───────┘
+```
+
+**Agentic file detection**
+
+A file is treated as an agentic instruction file when it matches any of the following signatures:
+
+| Signature | Examples |
+|-----------|---------|
+| Filename match | `CLAUDE.md`, `CLAUDE.*.md`, `.cursorrules`, `*.cursorrules`, `SYSTEM_PROMPT.md`, `INSTRUCTIONS.md`, `AGENTS.md` |
+| `<!-- shrinkwrap: ... -->` annotation present anywhere in the file | Any file previously compressed or annotated by ShrinkWrap |
+| YAML front-matter with an agentic key | `shrinkwrap_schema`, `model`, `instructions`, `rules`, `description`, `agent`, `system_prompt` |
+
+Directories named `.git`, `node_modules`, `__pycache__`, `.venv`, `venv`, `.tox`, and `.mypy_cache` are never crawled.
+
+**Deduplication strategy**
+
+- **Heading deduplication**: when two files share a heading (case-insensitive), the section from the first-discovered file wins and the duplicate is dropped.
+- **Cross-file bullet deduplication**: bullet-list lines already present in an earlier section are removed from later sections (same engine used by `--level condense`).
 
 ### `stats`
 
@@ -141,49 +208,6 @@ shrinkwrap drift-check [--repo .]
 Scores how much the last commit drifted from what your instruction file describes. Uses AST diffing on Python files (stdlib `ast` — no extra dependencies) so internal refactors produce zero signal.
 
 Drift analysis reads file content directly from the git index (staged / committed state) rather than from the working tree, so mid-edit dirty files on disk never pollute the score. Malformed Python files (syntax errors) are skipped with a warning rather than crashing the hook.
-
-### `consolidate`
-
-```
-shrinkwrap consolidate [directory] [options]
-```
-
-Discovers all agentic instruction files under `directory` (default: current working directory), merges them into a single unified master file, and deduplicates sections across files.
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--output / -o` | `CONSOLIDATED.md` in the target directory | Output file path |
-| `--dry-run` | off | Print merged output to stdout; do not write a file |
-
-**Agentic file detection**
-
-A file is treated as an agentic instruction file when it matches any of the following signatures:
-
-| Signature | Examples |
-|-----------|---------|
-| Filename match | `CLAUDE.md`, `CLAUDE.*.md`, `.cursorrules`, `*.cursorrules`, `SYSTEM_PROMPT.md`, `INSTRUCTIONS.md`, `AGENTS.md` |
-| `<!-- shrinkwrap: ... -->` annotation present anywhere in the file | Any file previously compressed or annotated by ShrinkWrap |
-| YAML front-matter with an agentic key | `shrinkwrap_schema`, `model`, `instructions`, `rules`, `description`, `agent`, `system_prompt` |
-
-Directories named `.git`, `node_modules`, `__pycache__`, `.venv`, `venv`, `.tox`, and `.mypy_cache` are never crawled.
-
-**Deduplication strategy**
-
-- **Heading deduplication**: when two files share a heading (case-insensitive), the section from the first-discovered file wins and the duplicate is dropped.
-- **Cross-file bullet deduplication**: bullet-list lines already present in an earlier section are removed from later sections (same engine used by `--level condense`).
-
-**Example**
-
-```bash
-# Consolidate all agentic files in the current repo into one master file
-shrinkwrap consolidate
-
-# Preview without writing
-shrinkwrap consolidate --dry-run
-
-# Write to a custom path
-shrinkwrap consolidate --output MASTER_INSTRUCTIONS.md
-```
 
 ## Controlling classification with annotations
 

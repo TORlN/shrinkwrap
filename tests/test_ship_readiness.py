@@ -36,7 +36,7 @@ class TestVersionFlag:
     def test_version_flag_prints_version_number(self) -> None:
         runner = CliRunner()
         result = runner.invoke(cli, ["--version"])
-        assert "0.1.0" in result.output
+        assert "0.2.0" in result.output
 
 
 # ---------------------------------------------------------------------------
