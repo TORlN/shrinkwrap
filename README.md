@@ -168,6 +168,8 @@ shrinkwrap:
 ---
 ```
 
+*You only need at most one of these for classification control of a given section.*
+
 ## `shrinkwrap.toml`
 
 Project-level defaults (place in the repo root):
