@@ -101,7 +101,6 @@ def score_commit(
 
     for fpath in changed_files:
         fname = Path(fpath).name
-        ext = Path(fpath).suffix
 
         if fname in _CONFIG_FILES:
             config_changed = True

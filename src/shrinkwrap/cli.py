@@ -510,8 +510,8 @@ def upgrade(vtbf_file: str) -> None:
 
 @cli.command()
 @click.argument("directory", type=click.Path(exists=True), required=False, default=None)
-@click.option("--output", "-o", default=None, help="Output file (default: CONSOLIDATED.md in the target directory).")
-@click.option("--dry-run", is_flag=True, default=False, help="Print merged output to stdout; do not write a file.")
+@click.option("--output", "-o", default=None, help="Output file (default: CONSOLIDATED.md).")
+@click.option("--dry-run", is_flag=True, default=False, help="Print to stdout; do not write file.")
 def consolidate(directory: str | None, output: str | None, dry_run: bool) -> None:
     """Discover and consolidate all agentic instruction files in a directory.
 

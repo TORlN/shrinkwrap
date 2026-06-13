@@ -135,15 +135,24 @@ class TestDriftResult:
 
 def _make_git_repo(root: Path) -> None:
     """Initialize a minimal git repo suitable for score_commit tests."""
-    subprocess.run(["git", "init", "--initial-branch=main"], cwd=root, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "init", "--initial-branch=main"], cwd=root, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=root, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test"], cwd=root, check=True, capture_output=True
+    )
 
 
 class TestScoreCommitNonPythonSkip:
     """score_commit must never pass non-Python content to the AST engine."""
 
-    def test_markdown_only_diff_no_python_symbols(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_markdown_only_diff_no_python_symbols(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         def mock_run(args: list[str], cwd: Path) -> str:
             joined = " ".join(args)
             if "--name-only" in joined:
@@ -155,7 +164,9 @@ class TestScoreCommitNonPythonSkip:
         result = score_commit(tmp_path, "HEAD")
         assert result.changed_public_symbols == []
 
-    def test_json_and_css_diff_no_python_symbols(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_json_and_css_diff_no_python_symbols(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         def mock_run(args: list[str], cwd: Path) -> str:
             if "--name-only" in " ".join(args):
                 return "package.json\nstyle.css\nconfig.yaml\n"
@@ -166,7 +177,9 @@ class TestScoreCommitNonPythonSkip:
         result = score_commit(tmp_path, "HEAD")
         assert result.changed_public_symbols == []
 
-    def test_typescript_diff_no_python_symbols(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_typescript_diff_no_python_symbols(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """TypeScript IS in _SOURCE_EXTS but must never hit ast.parse."""
         def mock_run(args: list[str], cwd: Path) -> str:
             if "--name-only" in " ".join(args):
@@ -174,11 +187,15 @@ class TestScoreCommitNonPythonSkip:
             return "\n"
 
         monkeypatch.setattr("shrinkwrap.drift._git_run", mock_run)
-        monkeypatch.setattr("shrinkwrap.drift._git_file_at", lambda *a: "export function hello(): void {}")
+        monkeypatch.setattr(
+            "shrinkwrap.drift._git_file_at", lambda *a: "export function hello(): void {}"
+        )
         result = score_commit(tmp_path, "HEAD")
         assert result.changed_public_symbols == []
 
-    def test_mixed_language_diff_only_py_symbols_detected(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_mixed_language_diff_only_py_symbols_detected(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         def mock_run(args: list[str], cwd: Path) -> str:
             if "--name-only" in " ".join(args):
                 return "README.md\napp.ts\nsrc/module.py\n"
