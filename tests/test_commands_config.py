@@ -90,7 +90,11 @@ class TestDriftThresholdFromConfig:
         (tmp_path / "shrinkwrap.toml").write_text("[shrinkwrap]\ndrift_threshold = 1.0\n")
 
         # Patch score_commit to return a score that would fire at default threshold
-        def fake_score_commit(repo_root: Path, commit_sha: str = "HEAD") -> DriftResult:
+        def fake_score_commit(
+            repo_root: Path,
+            commit_sha: str = "HEAD",
+            watched_paths: list[str] | None = None,
+        ) -> DriftResult:
             return DriftResult(
                 score=0.9,
                 changed_public_symbols=["some_function"],
@@ -112,7 +116,11 @@ class TestDriftThresholdFromConfig:
 
         (tmp_path / "shrinkwrap.toml").write_text("[shrinkwrap]\ndrift_threshold = 0.5\n")
 
-        def fake_score_commit(repo_root: Path, commit_sha: str = "HEAD") -> DriftResult:
+        def fake_score_commit(
+            repo_root: Path,
+            commit_sha: str = "HEAD",
+            watched_paths: list[str] | None = None,
+        ) -> DriftResult:
             return DriftResult(
                 score=0.8,
                 changed_public_symbols=["new_api"],
@@ -122,7 +130,7 @@ class TestDriftThresholdFromConfig:
         monkeypatch.setattr("shrinkwrap.drift.score_commit", fake_score_commit)
 
         result = CliRunner().invoke(cli, ["drift-check", "--repo", str(tmp_path)])
-        assert "drift" in result.output.lower()
+        assert "drift detected" in result.output.lower()
 
 
 # ---------------------------------------------------------------------------

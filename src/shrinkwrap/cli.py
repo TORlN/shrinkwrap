@@ -562,10 +562,7 @@ def consolidate(
 
     console.print(f"Found {len(found)} agentic file(s):")
     for f in found:
-        try:
-            rel = f.relative_to(root)
-        except ValueError:
-            rel = f
+        rel = f.relative_to(root)
         console.print(f"  {rel}")
 
     merged, metrics = consolidate_with_metrics(found, level=level, allow_lossy=allow_lossy)

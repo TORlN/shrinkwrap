@@ -67,12 +67,6 @@ def _dedup_cross_section_counted(sections_bodies: list[str]) -> tuple[list[str],
     return result, removed_count
 
 
-def _dedup_cross_section(sections_bodies: list[str]) -> list[str]:
-    """Remove bullet lines that already appeared in an earlier section."""
-    bodies, _ = _dedup_cross_section_counted(sections_bodies)
-    return bodies
-
-
 def _is_high_stakes(sentence: str) -> bool:
     return bool(_HIGH_STAKES_RE.search(sentence))
 
