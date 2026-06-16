@@ -13,18 +13,8 @@ class DriftResult:
     changed_public_symbols: list[str]
     structure_changes: list[str]
 
-    @property
-    def threshold_exceeded(self) -> bool:
-        return self.score >= 0.35
 
-
-def extract_public_symbols(source: str) -> set[str]:
-    """Return the set of top-level public symbol names in Python source."""
-    try:
-        tree = ast.parse(source)
-    except SyntaxError:
-        return set()
-
+def _symbols_from_tree(tree: ast.Module) -> set[str]:
     symbols: set[str] = set()
     for node in ast.iter_child_nodes(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
@@ -33,17 +23,20 @@ def extract_public_symbols(source: str) -> set[str]:
     return symbols
 
 
-def compute_symbol_drift(before: str, after: str) -> tuple[list[str], list[str], list[str]]:
-    """
-    Compare public symbol sets. Returns (added, removed, renamed).
-    renamed is always empty — rename detection is not implemented.
-    """
+def extract_public_symbols(source: str) -> set[str]:
+    """Return the set of top-level public symbol names in Python source."""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return set()
+    return _symbols_from_tree(tree)
+
+
+def compute_symbol_drift(before: str, after: str) -> tuple[list[str], list[str]]:
+    """Compare public symbol sets. Returns (added, removed)."""
     before_symbols = extract_public_symbols(before)
     after_symbols = extract_public_symbols(after)
-
-    added = sorted(after_symbols - before_symbols)
-    removed = sorted(before_symbols - after_symbols)
-    return added, removed, []
+    return sorted(after_symbols - before_symbols), sorted(before_symbols - after_symbols)
 
 
 _CONFIG_FILES = frozenset(["pyproject.toml", "setup.cfg", "setup.py", "package.json", "Cargo.toml"])
@@ -123,15 +116,15 @@ def score_commit(
         # Fall back to the commit tree when the index has no entry (e.g. file deleted).
         after = _git_index_file(fpath, repo_root) or _git_file_at(commit_sha, fpath, repo_root)
 
-        # Detect syntax errors before delegating to compute_symbol_drift.
-        # extract_public_symbols() silently returns set() on SyntaxError, so we check
-        # here where we have the file path to include in the warning message.
+        # Parse each source once: reuse the tree for both syntax validation and
+        # symbol extraction so we never call ast.parse() twice per file.
+        trees: dict[str, ast.Module] = {}
         syntax_ok = True
         for source, label in ((before, "before"), (after, "after")):
             if not source:
                 continue
             try:
-                ast.parse(source)
+                trees[label] = ast.parse(source)
             except SyntaxError as exc:
                 print(
                     f"[shrinkwrap] Warning: skipping {fpath} "
@@ -143,9 +136,10 @@ def score_commit(
                 break
 
         if syntax_ok:
-            added, removed, _ = compute_symbol_drift(before, after)
-            all_added.extend(added)
-            all_removed.extend(removed)
+            b_syms = _symbols_from_tree(trees["before"]) if "before" in trees else set()
+            a_syms = _symbols_from_tree(trees["after"]) if "after" in trees else set()
+            all_added.extend(sorted(a_syms - b_syms))
+            all_removed.extend(sorted(b_syms - a_syms))
 
     all_changed = all_added + all_removed
     public_api_change_ratio = min(1.0, len(all_changed) / max(len(changed_files), 1))

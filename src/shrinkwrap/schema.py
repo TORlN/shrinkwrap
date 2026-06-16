@@ -32,7 +32,6 @@ _SECTION_CLOSE = "<!-- /sw:section -->"
 class VerifyResult:
     valid: bool
     errors: list[str]
-    warnings: list[str]
 
 
 # ---------------------------------------------------------------------------
@@ -179,17 +178,16 @@ def verify(
     vtbf_text = vtbf_text.replace("\r\n", "\n")
 
     errors: list[str] = []
-    warnings: list[str] = []
 
     # 1. Must have front-matter
     fm_match = _FRONTMATTER_RE.match(vtbf_text)
     if not fm_match:
-        return VerifyResult(False, ["Missing VTBF front-matter"], [])
+        return VerifyResult(False, ["Missing VTBF front-matter"])
 
     try:
         fm: dict[str, Any] = yaml.safe_load(fm_match.group(1)) or {}
     except yaml.YAMLError as exc:
-        return VerifyResult(False, [f"Invalid front-matter YAML: {exc}"], [])
+        return VerifyResult(False, [f"Invalid front-matter YAML: {exc}"])
 
     # 2. Schema version check
     schema_ver = str(fm.get("shrinkwrap_schema", ""))
@@ -199,7 +197,7 @@ def verify(
         errors.append(f"Unsupported schema version: {schema_ver!r}. Run 'shrinkwrap upgrade'.")
 
     if errors:
-        return VerifyResult(False, errors, warnings)
+        return VerifyResult(False, errors)
 
     # 3. Verify immutable section checksums
     body = vtbf_text[fm_match.end() :]
@@ -242,4 +240,4 @@ def verify(
                 "Re-run 'shrinkwrap compress'."
             )
 
-    return VerifyResult(valid=len(errors) == 0, errors=errors, warnings=warnings)
+    return VerifyResult(valid=len(errors) == 0, errors=errors)

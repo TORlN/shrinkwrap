@@ -9,6 +9,7 @@ _HIGH_STAKES_RE = re.compile(
     r"\b(never|always|forbidden|must not|do not|don't|required|prohibited|disallowed)\b",
     re.IGNORECASE,
 )
+_ORDERED_BULLET_RE = re.compile(r"^\d+\.\s")
 
 
 # ---------------------------------------------------------------------------
@@ -31,7 +32,7 @@ def _dedup_adjacent_bullets(text: str) -> str:
     prev_bullet: str | None = None
     for line in lines:
         stripped = line.strip()
-        is_bullet = stripped.startswith(("- ", "* ", "+ ")) or re.match(r"^\d+\.\s", stripped)
+        is_bullet = stripped.startswith(("- ", "* ", "+ ")) or _ORDERED_BULLET_RE.match(stripped)
         if is_bullet and stripped == prev_bullet:
             continue
         result.append(line)
@@ -55,7 +56,9 @@ def _dedup_cross_section_counted(sections_bodies: list[str]) -> tuple[list[str],
         output_lines: list[str] = []
         for line in body.split("\n"):
             stripped = line.strip()
-            is_bullet = stripped.startswith(("- ", "* ", "+ ")) or re.match(r"^\d+\.\s", stripped)
+            is_bullet = stripped.startswith(("- ", "* ", "+ ")) or _ORDERED_BULLET_RE.match(
+                stripped
+            )
             if is_bullet:
                 key = re.sub(r"^[-*+]\s+|\d+\.\s+", "", stripped).lower().strip()
                 if key in seen_bullets:

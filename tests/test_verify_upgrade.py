@@ -128,14 +128,15 @@ class TestVerifyJsonFlag:
         result = CliRunner().invoke(cli, ["verify", str(src), "--json"])
         assert result.exit_code != 0
 
-    def test_verify_json_includes_warnings_key(self, tmp_path: Path) -> None:
+    def test_verify_json_shape(self, tmp_path: Path) -> None:
         src = tmp_path / "CLAUDE.md"
         src.write_text("## Status\n- ok\n")
         runner = CliRunner()
         vtbf = _compress(runner, src)
         result = runner.invoke(cli, ["verify", str(vtbf), "--json"])
         parsed = json.loads(result.output)
-        assert "warnings" in parsed
+        assert "valid" in parsed
+        assert "errors" in parsed
 
     def test_verify_without_json_flag_still_works(self, tmp_path: Path) -> None:
         """The existing human-readable output must still work without --json."""

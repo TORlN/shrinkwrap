@@ -249,7 +249,6 @@ def verify(vtbf_file: str, strict: bool, output_json: bool) -> None:
                 {
                     "valid": result.valid,
                     "errors": result.errors,
-                    "warnings": result.warnings,
                 }
             )
         )
@@ -264,9 +263,6 @@ def verify(vtbf_file: str, strict: bool, output_json: bool) -> None:
         for err in result.errors:
             console.print(f"  [red]•[/red] {err}")
         sys.exit(1)
-
-    for warn in result.warnings:
-        console.print(f"  [yellow]![/yellow] {warn}")
 
 
 @cli.command()

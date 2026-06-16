@@ -11,7 +11,7 @@ import yaml
 from .compressor import _dedup_cross_section_counted, compress_document_sections_counted
 from .config import _VALID_LEVELS
 from .metrics import CompressionMetrics
-from .parser import Section, parse
+from .parser import _FRONTMATTER_RE, Section, parse
 from .schema import _approx_tokens
 
 # ---------------------------------------------------------------------------
@@ -44,7 +44,6 @@ _AGENTIC_FM_KEYS: frozenset[str] = frozenset(
 )
 
 _SHRINKWRAP_ANNOTATION_RE = re.compile(r"<!--\s*shrinkwrap:", re.IGNORECASE)
-_FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
 
 # Directories that are never crawled.
 _SKIP_DIRS: frozenset[str] = frozenset(

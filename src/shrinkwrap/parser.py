@@ -122,8 +122,8 @@ def _classify_section(
     if body.strip():
         with AstRenderer() as renderer:  # type: ignore[no-untyped-call]
             ast_json = renderer.render(mistletoe.Document(body))  # type: ignore[attr-defined]
-        ast = json.loads(ast_json)
-        children: list[dict[str, Any]] = ast.get("children") or []
+        doc = json.loads(ast_json)
+        children: list[dict[str, Any]] = doc.get("children") or []
 
         has_code = any(c.get("type") in _CODE_BLOCK_TYPES for c in children)
         has_prose = any(c.get("type") == "Paragraph" for c in children)

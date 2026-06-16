@@ -66,20 +66,6 @@ class TestStatsRespectsConfig:
 
 
 class TestDriftThresholdFromConfig:
-    def test_drift_result_threshold_exceeded_uses_default(self) -> None:
-        """DriftResult with score 0.4 exceeds default threshold of 0.35."""
-        from shrinkwrap.drift import DriftResult
-
-        r = DriftResult(score=0.4, changed_public_symbols=[], structure_changes=[])
-        assert r.threshold_exceeded
-
-    def test_drift_result_score_below_threshold_not_exceeded(self) -> None:
-        """DriftResult with score 0.2 does not exceed default threshold."""
-        from shrinkwrap.drift import DriftResult
-
-        r = DriftResult(score=0.2, changed_public_symbols=[], structure_changes=[])
-        assert not r.threshold_exceeded
-
     def test_drift_check_cli_respects_config_threshold(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
