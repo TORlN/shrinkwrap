@@ -16,7 +16,7 @@ from rich.table import Table
 from .config import load_config
 from .metrics import CompressionMetrics
 from .parser import parse
-from .schema import compress_with_metrics, serialize
+from .schema import _approx_tokens, compress_with_metrics, serialize
 from .schema import verify as verify_vtbf
 
 console = Console()
@@ -75,17 +75,7 @@ def compress(
     backup: bool,
 ) -> None:
     """Compress an instruction file into VTBF format."""
-    # Auto-discover CLAUDE.md in cwd when no argument given
-    if input_file is None:
-        input_file = str(Path.cwd() / "CLAUDE.md")
-
-    src_path = Path(input_file)
-    if not src_path.exists():
-        console.print(
-            f"[red]Error:[/red] {src_path.name} not found. "
-            "Specify a file or create CLAUDE.md in the current directory."
-        )
-        sys.exit(1)
+    src_path = _resolve_input_path(input_file)
 
     if in_place and output:
         console.print("[red]Error:[/red] --in-place and --output are mutually exclusive.")
@@ -285,17 +275,7 @@ def audit(input_file: str | None) -> None:
     """Show classification report for an instruction file."""
     from .parser import ShrinkWrapClassificationWarning
 
-    if input_file is None:
-        input_file = str(Path.cwd() / "CLAUDE.md")
-
-    src_path = Path(input_file)
-    if not src_path.exists():
-        console.print(
-            f"[red]Error:[/red] {src_path.name} not found. "
-            "Specify a file or create CLAUDE.md in the current directory."
-        )
-        sys.exit(1)
-
+    src_path = _resolve_input_path(input_file)
     cfg = load_config(src_path.parent)
     source_text = _read_text(src_path)
     with warnings.catch_warnings(record=True) as caught:
@@ -347,18 +327,7 @@ def stats(input_file: str | None, output_json: bool) -> None:
     """Show token statistics and compression projections for an instruction file."""
     from .compressor import compress_document_sections
 
-    # Auto-discover CLAUDE.md in cwd when no argument given
-    if input_file is None:
-        input_file = str(Path.cwd() / "CLAUDE.md")
-
-    src_path = Path(input_file)
-    if not src_path.exists():
-        console.print(
-            f"[red]Error:[/red] {src_path.name} not found. "
-            "Specify a file or create CLAUDE.md in the current directory."
-        )
-        sys.exit(1)
-
+    src_path = _resolve_input_path(input_file)
     source_text = _read_text(src_path)
     cfg = load_config(src_path.parent)
     doc = parse(source_text, config=cfg)
@@ -370,9 +339,9 @@ def stats(input_file: str | None, output_json: bool) -> None:
             if s.classification != "immutable":
                 s.compression = level  # type: ignore[assignment]
         bodies = compress_document_sections(clones)
-        return sum(max(1, len(b) // 4) for b in bodies)
+        return sum(_approx_tokens(b) for b in bodies)
 
-    total_tokens = sum(max(1, len(s.body) // 4) for s in doc.sections)
+    total_tokens = sum(_approx_tokens(s.body) for s in doc.sections)
 
     if output_json:
         click.echo(
@@ -382,7 +351,7 @@ def stats(input_file: str | None, output_json: bool) -> None:
                         {
                             "heading": s.heading,
                             "classification": s.classification,
-                            "tokens": max(1, len(s.body) // 4),
+                            "tokens": _approx_tokens(s.body),
                         }
                         for s in doc.sections
                     ],
@@ -403,7 +372,7 @@ def stats(input_file: str | None, output_json: bool) -> None:
     table.add_column("Tokens (approx)", justify="right")
 
     for section in doc.sections:
-        tok = max(1, len(section.body) // 4)
+        tok = _approx_tokens(section.body)
         cls_color = {
             "immutable": "green",
             "mutable": "cyan",
@@ -762,17 +731,7 @@ def watch(
     allow_lossy: bool,
 ) -> None:
     """Watch a file and recompress automatically whenever it changes."""
-    if file is None:
-        file = str(Path.cwd() / "CLAUDE.md")
-
-    path = Path(file)
-    if not path.exists():
-        console.print(
-            f"[red]Error:[/red] {path.name} not found. "
-            "Specify a file or create CLAUDE.md in the current directory."
-        )
-        sys.exit(1)
-
+    path = _resolve_input_path(file)
     console.print(f"[green]Watching[/green] {path.name} (interval: {interval}s) — Ctrl+C to stop")
     try:
         _watch_loop(path, level, profile, allow_lossy, interval)
@@ -815,6 +774,19 @@ def _print_consolidate_metrics(metrics: CompressionMetrics) -> None:
 # ---------------------------------------------------------------------------
 # Profile helpers
 # ---------------------------------------------------------------------------
+
+
+def _resolve_input_path(input_file: str | None) -> Path:
+    if input_file is None:
+        input_file = str(Path.cwd() / "CLAUDE.md")
+    path = Path(input_file)
+    if not path.exists():
+        console.print(
+            f"[red]Error:[/red] {path.name} not found. "
+            "Specify a file or create CLAUDE.md in the current directory."
+        )
+        sys.exit(1)
+    return path
 
 
 def _read_text(path: Path) -> str:

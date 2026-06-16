@@ -139,11 +139,7 @@ def compress_section(section: Section, allow_lossy: bool = False) -> str:
 
     body = _normalize(body)
 
-    if level == "normalize":
-        return body
-
-    # condense: normalize already applied
-    if level == "condense":
+    if level in ("normalize", "condense"):
         return body
 
     # aggressive: prune low-value prose, keep high-stakes sentences

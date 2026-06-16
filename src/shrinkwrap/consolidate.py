@@ -9,8 +9,10 @@ from pathlib import Path
 import yaml
 
 from .compressor import _dedup_cross_section_counted, compress_document_sections_counted
+from .config import _VALID_LEVELS
 from .metrics import CompressionMetrics
 from .parser import Section, parse
+from .schema import _approx_tokens
 
 # ---------------------------------------------------------------------------
 # Agentic-signature detection
@@ -118,13 +120,6 @@ def discover_agentic_files(root: Path) -> list[Path]:
 # ---------------------------------------------------------------------------
 # Merge engine
 # ---------------------------------------------------------------------------
-
-
-def _approx_tokens(text: str) -> int:
-    return max(1, len(text) // 4)
-
-
-_VALID_LEVELS = frozenset(["normalize", "condense", "aggressive"])
 
 
 def consolidate_with_metrics(

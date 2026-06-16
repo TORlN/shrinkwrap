@@ -47,7 +47,6 @@ def compute_symbol_drift(before: str, after: str) -> tuple[list[str], list[str],
 
 
 _CONFIG_FILES = frozenset(["pyproject.toml", "setup.cfg", "setup.py", "package.json", "Cargo.toml"])
-_SOURCE_EXTS = frozenset([".py", ".ts", ".js", ".go", ".rs", ".java"])
 _TEST_PATTERNS = ("test_", "_test.", "spec.", ".spec.")
 
 
