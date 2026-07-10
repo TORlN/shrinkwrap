@@ -107,6 +107,8 @@ After compressing, a metrics table is printed showing tokens before and after, t
 
 Immutable sections (security rules, architecture) are never touched beyond whitespace normalization regardless of level.
 
+**Files with no ATX headings** (e.g. front-matter plus flowing prose, no `#`/`##` lines) are not treated as zero sections. The whole body is parsed as a single implicit section, classified the same way as any other section, and shown as `(whole document)` in `audit`/`stats` output.
+
 ### `consolidate`
 
 ```
@@ -265,6 +267,8 @@ extra_mutable_keywords = ["backlog", "icebox"]
 ## Output format (VTBF)
 
 Compressed files are valid markdown with machine-readable metadata in HTML comments. The comments are invisible to rendered markdown but let ShrinkWrap re-compress, verify, and diff files reliably.
+
+Any front-matter keys already present on the source file (e.g. `name`, `description`, `metadata` used by another tool) are preserved in the output alongside ShrinkWrap's own schema fields — compressing a file never strips front-matter another system depends on. If a key collides with one of ShrinkWrap's own fields, ShrinkWrap's value wins.
 
 ```
 ---
