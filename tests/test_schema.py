@@ -118,6 +118,33 @@ metadata:
         assert fm.get("shrinkwrap_schema") == SCHEMA_VERSION
 
 
+class TestSerializeImplicitWholeDocumentSection:
+    """A heading-less source (front-matter + flowing prose, no ATX headings)
+    parses to one implicit section; serialize() must not emit a stray empty
+    '# ' heading line for it."""
+
+    SOURCE = "---\nname: some-memory\n---\n\nJust flowing prose, no headings at all.\n"
+
+    def setup_method(self) -> None:
+        self.doc = parse(self.SOURCE)
+        self.vtbf = serialize(self.doc, "some-memory.md", self.SOURCE)
+
+    def test_no_stray_heading_line(self) -> None:
+        body = self.vtbf.split("-->", 1)[1]
+        assert not any(line.strip().startswith("#") for line in body.splitlines())
+
+    def test_body_content_present(self) -> None:
+        assert "Just flowing prose" in self.vtbf
+
+    def test_wrapped_in_section_tags(self) -> None:
+        assert "<!-- sw:section" in self.vtbf
+        assert "<!-- /sw:section -->" in self.vtbf
+
+    def test_nonzero_tokens(self) -> None:
+        fm = _parse_fm(self.vtbf)
+        assert fm.get("total_tokens_approx", 0) > 0
+
+
 # ---------------------------------------------------------------------------
 # Serialize — section tags
 # ---------------------------------------------------------------------------

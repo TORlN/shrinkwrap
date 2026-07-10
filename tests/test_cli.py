@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -141,22 +142,32 @@ def no_heading_file(tmp_path: Path) -> Path:
 
 
 class TestCompressNoHeadingSections:
-    def test_dry_run_warns_but_does_not_fail(
+    """Files with no ATX headings at all (front-matter + flowing prose) get an
+    implicit whole-document section synthesized by the parser, so compress
+    works on them directly rather than being a zero-section no-op."""
+
+    def test_compress_succeeds_without_any_flag(
         self, runner: CliRunner, no_heading_file: Path
     ) -> None:
-        result = runner.invoke(cli, ["compress", str(no_heading_file), "--dry-run"])
+        result = runner.invoke(cli, ["compress", str(no_heading_file)])
         assert result.exit_code == 0, result.output
-        assert "no heading-delimited" in result.output.lower()
 
-    def test_in_place_refuses_without_force(self, runner: CliRunner, no_heading_file: Path) -> None:
-        original = no_heading_file.read_text()
+    def test_in_place_succeeds_without_any_flag(
+        self, runner: CliRunner, no_heading_file: Path
+    ) -> None:
         result = runner.invoke(cli, ["compress", str(no_heading_file), "--in-place"])
-        assert result.exit_code != 0
-        assert no_heading_file.read_text() == original, "refused run must not touch the file"
-
-    def test_in_place_with_force_proceeds(self, runner: CliRunner, no_heading_file: Path) -> None:
-        result = runner.invoke(cli, ["compress", str(no_heading_file), "--in-place", "--force"])
         assert result.exit_code == 0, result.output
+
+    def test_body_content_survives(self, runner: CliRunner, no_heading_file: Path) -> None:
+        runner.invoke(cli, ["compress", str(no_heading_file)])
+        out = no_heading_file.with_suffix(".sw.md").read_text()
+        assert "flowing prose under" in out
+
+    def test_body_wrapped_in_section_tags(self, runner: CliRunner, no_heading_file: Path) -> None:
+        runner.invoke(cli, ["compress", str(no_heading_file)])
+        out = no_heading_file.with_suffix(".sw.md").read_text()
+        assert "<!-- sw:section" in out
+        assert "<!-- /sw:section -->" in out
 
     def test_original_front_matter_keys_preserved(
         self, runner: CliRunner, no_heading_file: Path
@@ -167,6 +178,20 @@ class TestCompressNoHeadingSections:
         assert "type: project" in out
         # ShrinkWrap's own bookkeeping fields still show up alongside them.
         assert "shrinkwrap_schema" in out
+
+    def test_audit_shows_one_implicit_section(
+        self, runner: CliRunner, no_heading_file: Path
+    ) -> None:
+        result = runner.invoke(cli, ["audit", str(no_heading_file)])
+        assert result.exit_code == 0, result.output
+        assert "whole document" in result.output.lower()
+
+    def test_stats_reports_nonzero_tokens(self, runner: CliRunner, no_heading_file: Path) -> None:
+        result = runner.invoke(cli, ["stats", str(no_heading_file), "--json"])
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["total_tokens"] > 0
+        assert len(payload["sections"]) == 1
 
 
 # ---------------------------------------------------------------------------

@@ -108,6 +108,70 @@ class TestSectionSplitting:
 
 
 # ---------------------------------------------------------------------------
+# Implicit whole-document section (no ATX headings anywhere in the body)
+# ---------------------------------------------------------------------------
+
+
+class TestImplicitWholeDocumentSection:
+    """Front-matter + flowing prose with no '#'/'##' headings at all (e.g. an
+    agent-written memory file using **bold** labels instead of headings) gets
+    treated as a single implicit section rather than reporting zero sections."""
+
+    NO_HEADING_BODY = (
+        "Some flowing prose under **bold** labels, with no ATX heading anywhere in the body.\n"
+    )
+
+    def test_synthesizes_one_section(self) -> None:
+        doc = parse(self.NO_HEADING_BODY)
+        assert len(doc.sections) == 1
+
+    def test_implicit_section_has_empty_heading_and_level_zero(self) -> None:
+        doc = parse(self.NO_HEADING_BODY)
+        section = doc.sections[0]
+        assert section.heading == ""
+        assert section.level == 0
+
+    def test_implicit_section_body_is_full_text(self) -> None:
+        doc = parse(self.NO_HEADING_BODY)
+        assert doc.sections[0].body == self.NO_HEADING_BODY
+
+    def test_preamble_emptied_once_moved_into_section(self) -> None:
+        doc = parse(self.NO_HEADING_BODY)
+        assert doc.preamble == ""
+
+    def test_implicit_section_gets_classified(self) -> None:
+        doc = parse(self.NO_HEADING_BODY)
+        assert doc.sections[0].classification in ("mutable", "immutable", "ambiguous")
+
+    def test_front_matter_plus_heading_less_body(self) -> None:
+        text = "---\nname: some-memory\n---\n\n" + self.NO_HEADING_BODY
+        doc = parse(text)
+        assert doc.front_matter == {"name": "some-memory"}
+        assert len(doc.sections) == 1
+        assert "flowing prose" in doc.sections[0].body
+
+    def test_whitespace_only_body_still_yields_no_sections(self) -> None:
+        # No real content to synthesize a section from — same as the empty-document case.
+        doc = parse("---\nname: x\n---\n\n   \n\n")
+        assert doc.sections == []
+
+    def test_trailing_unconsumed_annotation_applies_to_implicit_section(self) -> None:
+        text = "<!-- shrinkwrap: immutable -->\n" + self.NO_HEADING_BODY
+        doc = parse(text)
+        assert len(doc.sections) == 1
+        assert doc.sections[0].classification == "immutable"
+        assert doc.sections[0].annotation_source is True
+
+    def test_document_with_real_heading_is_unaffected(self) -> None:
+        # Sanity check: this fallback must not fire when real sections exist.
+        text = "Preamble.\n\n## Real Section\nbody\n"
+        doc = parse(text)
+        assert len(doc.sections) == 1
+        assert doc.sections[0].heading == "Real Section"
+        assert "Preamble" in doc.preamble
+
+
+# ---------------------------------------------------------------------------
 # Classification — Signal 1: explicit annotation
 # ---------------------------------------------------------------------------
 

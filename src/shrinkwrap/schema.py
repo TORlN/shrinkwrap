@@ -74,7 +74,11 @@ def compress_with_metrics(
     )
 
     for section, compressed_body in zip(doc.sections, compressed_bodies):
-        heading_line = f"{'#' * section.level} {section.heading}\n"
+        # A real heading always has non-empty text (see parser._HEADING_RE);
+        # an empty heading marks the implicit whole-document section the
+        # parser synthesizes for heading-less input, which has no heading
+        # line of its own to re-emit.
+        heading_line = f"{'#' * section.level} {section.heading}\n" if section.heading else ""
         original_content = heading_line + section.body
         compressed_content = heading_line + compressed_body
 

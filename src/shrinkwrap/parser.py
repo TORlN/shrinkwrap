@@ -293,6 +293,37 @@ def parse(text: str, config: ShrinkWrapConfig | None = None) -> ParsedDocument:
 
     flush_current()
 
+    # No ATX headings anywhere in the document (e.g. front-matter + flowing
+    # prose under **bold** labels, common in agent-written memory/instruction
+    # files). Rather than reporting zero sections and leaving the whole body
+    # untouched, treat it as a single implicit section so classification and
+    # compression still apply. A trailing, never-consumed annotation (no
+    # heading followed it) is honoured here rather than discarded.
+    if not sections:
+        preamble_text = "".join(preamble_lines)
+        if preamble_text.strip():
+            cls, from_ann, comp, kw = _classify_section(
+                "",
+                pending_annotation,
+                pending_annotation_compression,
+                shrinkwrap_meta,
+                preamble_text,
+                extra_immutable=extra_immutable,
+                extra_mutable=extra_mutable,
+            )
+            sections.append(
+                Section(
+                    heading="",
+                    level=0,
+                    body=preamble_text,
+                    classification=cls,
+                    annotation_source=from_ann,
+                    compression=comp,
+                    trigger_keyword=kw,
+                )
+            )
+            preamble_lines = []
+
     return ParsedDocument(
         front_matter=front_matter,
         shrinkwrap_meta=shrinkwrap_meta,

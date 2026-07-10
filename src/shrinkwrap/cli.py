@@ -84,12 +84,6 @@ def cli() -> None:
     default=False,
     help="Write <file>.bak before overwriting (requires --in-place).",
 )
-@click.option(
-    "--force",
-    is_flag=True,
-    default=False,
-    help="Proceed with --in-place even when no heading-delimited sections were found.",
-)
 def compress(
     input_file: str | None,
     output: str | None,
@@ -99,7 +93,6 @@ def compress(
     dry_run: bool,
     in_place: bool,
     backup: bool,
-    force: bool,
 ) -> None:
     """Compress an instruction file into VTBF format."""
     src_path = _resolve_input_path(input_file)
@@ -124,19 +117,6 @@ def compress(
     source_text = _read_text(src_path)
     doc = parse(source_text, config=cfg)
 
-    if not doc.sections and doc.preamble.strip():
-        console.print(
-            "[yellow]Warning:[/yellow] no heading-delimited ('#'..'######') sections found — "
-            "nothing can be compressed, and the front-matter would still be rewritten with "
-            "ShrinkWrap's own schema for zero benefit."
-        )
-        if in_place and not force:
-            console.print(
-                "[red]Error:[/red] refusing --in-place with zero heading-delimited sections. "
-                "Re-run with --force to overwrite anyway."
-            )
-            sys.exit(1)
-
     for section in doc.sections:
         if section.classification == "immutable":
             continue
@@ -150,7 +130,7 @@ def compress(
     # Fail early if any section requests aggressive compression without --allow-lossy.
     if not allow_lossy:
         aggressive_sections = [
-            s.heading
+            _display_heading(s.heading)
             for s in doc.sections
             if s.compression == "aggressive" and s.classification not in ("immutable", "ambiguous")
         ]
@@ -337,7 +317,7 @@ def audit(input_file: str | None) -> None:
         else:
             source_label = "structural"
         table.add_row(
-            section.heading,
+            _display_heading(section.heading),
             str(section.level),
             f"[{cls_color}]{section.classification}[/{cls_color}]",
             source_label,
@@ -415,7 +395,7 @@ def stats(input_file: str | None, output_json: bool) -> None:
             "ambiguous": "yellow",
         }.get(section.classification, "white")
         table.add_row(
-            section.heading,
+            _display_heading(section.heading),
             f"[{cls_color}]{section.classification}[/{cls_color}]",
             str(tok),
         )
@@ -791,6 +771,14 @@ def _print_compress_metrics(metrics: CompressionMetrics) -> None:
     if metrics.duplicate_bullets_removed:
         table.add_row("Duplicate bullets removed", str(metrics.duplicate_bullets_removed))
     console.print(table)
+
+
+def _display_heading(heading: str) -> str:
+    """Human-readable label for a table row's heading column. The parser's
+    implicit whole-document section (synthesized when the source has no ATX
+    headings at all) has an empty heading; JSON output keeps it as "", this
+    is only for the Rich tables."""
+    return heading if heading else "(whole document)"
 
 
 def _print_consolidate_metrics(metrics: CompressionMetrics) -> None:
