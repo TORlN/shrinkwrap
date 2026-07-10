@@ -121,16 +121,24 @@ def compress_with_metrics(
     source_hash = _sha256_short(source_text)
     now = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
-    front_matter = (
-        "---\n"
-        f'shrinkwrap_schema: "{SCHEMA_VERSION}"\n'
-        f'source_file: "{source_path}"\n'
-        f'source_sha256: "{source_hash}"\n'
-        f'compressed_at: "{now}"\n'
-        f"compression_ratio: {ratio}\n"
-        f"total_tokens_approx: {total_compressed}\n"
-        "---\n"
+    # ShrinkWrap's own bookkeeping fields always win; anything else the source
+    # file's front-matter carried (name, description, a consumer's own schema,
+    # etc.) is preserved rather than clobbered so other tools that read that
+    # front-matter keep working after a compress pass.
+    schema_fields: dict[str, Any] = {
+        "shrinkwrap_schema": SCHEMA_VERSION,
+        "source_file": source_path,
+        "source_sha256": source_hash,
+        "compressed_at": now,
+        "compression_ratio": ratio,
+        "total_tokens_approx": total_compressed,
+    }
+    preserved_fields = {k: v for k, v in doc.front_matter.items() if k not in schema_fields}
+    merged_fields = {**preserved_fields, **schema_fields}
+    dumped_fields = yaml.safe_dump(
+        merged_fields, sort_keys=False, default_flow_style=False, allow_unicode=True
     )
+    front_matter = f"---\n{dumped_fields}---\n"
 
     parts: list[str] = [front_matter]
     if doc.preamble.strip():

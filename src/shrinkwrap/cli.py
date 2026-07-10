@@ -19,6 +19,26 @@ from .parser import parse
 from .schema import _approx_tokens, compress_with_metrics, serialize
 from .schema import verify as verify_vtbf
 
+
+def _ensure_utf8_stdio() -> None:
+    """Force UTF-8 on stdout/stderr.
+
+    On Windows, a stream's default encoding often follows the legacy console
+    codepage (e.g. cp1252) rather than UTF-8, which mangles non-ASCII output
+    (em dashes, curly quotes) into '?' or the replacement character. Reconfigure
+    in place rather than swapping streams, since other modules may hold a
+    reference to the original object (e.g. rich.Console captures sys.stdout).
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):
+                pass
+
+
+_ensure_utf8_stdio()
 console = Console()
 
 try:
@@ -64,6 +84,12 @@ def cli() -> None:
     default=False,
     help="Write <file>.bak before overwriting (requires --in-place).",
 )
+@click.option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Proceed with --in-place even when no heading-delimited sections were found.",
+)
 def compress(
     input_file: str | None,
     output: str | None,
@@ -73,6 +99,7 @@ def compress(
     dry_run: bool,
     in_place: bool,
     backup: bool,
+    force: bool,
 ) -> None:
     """Compress an instruction file into VTBF format."""
     src_path = _resolve_input_path(input_file)
@@ -96,6 +123,19 @@ def compress(
 
     source_text = _read_text(src_path)
     doc = parse(source_text, config=cfg)
+
+    if not doc.sections and doc.preamble.strip():
+        console.print(
+            "[yellow]Warning:[/yellow] no heading-delimited ('#'..'######') sections found — "
+            "nothing can be compressed, and the front-matter would still be rewritten with "
+            "ShrinkWrap's own schema for zero benefit."
+        )
+        if in_place and not force:
+            console.print(
+                "[red]Error:[/red] refusing --in-place with zero heading-delimited sections. "
+                "Re-run with --force to overwrite anyway."
+            )
+            sys.exit(1)
 
     for section in doc.sections:
         if section.classification == "immutable":

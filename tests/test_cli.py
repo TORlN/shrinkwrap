@@ -117,6 +117,59 @@ class TestCompressCommand:
 
 
 # ---------------------------------------------------------------------------
+# compress command — heading-less files (no '#'/'##' sections at all)
+# ---------------------------------------------------------------------------
+
+NO_HEADING_MD = """\
+---
+name: some-memory
+description: a file with no markdown headings, just front-matter and prose
+metadata:
+  type: project
+---
+
+Some flowing prose under **bold** labels, with no ATX heading anywhere in
+the body for the section parser to key off of.
+"""
+
+
+@pytest.fixture()
+def no_heading_file(tmp_path: Path) -> Path:
+    p = tmp_path / "no_headings.md"
+    p.write_text(NO_HEADING_MD)
+    return p
+
+
+class TestCompressNoHeadingSections:
+    def test_dry_run_warns_but_does_not_fail(
+        self, runner: CliRunner, no_heading_file: Path
+    ) -> None:
+        result = runner.invoke(cli, ["compress", str(no_heading_file), "--dry-run"])
+        assert result.exit_code == 0, result.output
+        assert "no heading-delimited" in result.output.lower()
+
+    def test_in_place_refuses_without_force(self, runner: CliRunner, no_heading_file: Path) -> None:
+        original = no_heading_file.read_text()
+        result = runner.invoke(cli, ["compress", str(no_heading_file), "--in-place"])
+        assert result.exit_code != 0
+        assert no_heading_file.read_text() == original, "refused run must not touch the file"
+
+    def test_in_place_with_force_proceeds(self, runner: CliRunner, no_heading_file: Path) -> None:
+        result = runner.invoke(cli, ["compress", str(no_heading_file), "--in-place", "--force"])
+        assert result.exit_code == 0, result.output
+
+    def test_original_front_matter_keys_preserved(
+        self, runner: CliRunner, no_heading_file: Path
+    ) -> None:
+        runner.invoke(cli, ["compress", str(no_heading_file)])
+        out = no_heading_file.with_suffix(".sw.md").read_text()
+        assert "name: some-memory" in out
+        assert "type: project" in out
+        # ShrinkWrap's own bookkeeping fields still show up alongside them.
+        assert "shrinkwrap_schema" in out
+
+
+# ---------------------------------------------------------------------------
 # verify command
 # ---------------------------------------------------------------------------
 

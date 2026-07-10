@@ -34,9 +34,11 @@ class TestVersionFlag:
         assert result.exit_code == 0
 
     def test_version_flag_prints_version_number(self) -> None:
+        from importlib.metadata import version as pkg_version
+
         runner = CliRunner()
         result = runner.invoke(cli, ["--version"])
-        assert "0.3.3" in result.output
+        assert pkg_version("shrnkwrp") in result.output
 
 
 # ---------------------------------------------------------------------------

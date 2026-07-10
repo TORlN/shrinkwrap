@@ -75,6 +75,49 @@ class TestSerializeFrontMatter:
         assert self.fm.get("total_tokens_approx", 0) > 0
 
 
+class TestSerializePreservesForeignFrontMatter:
+    """A source file's own front-matter keys (name/description/metadata/etc.,
+    used by consumers other than ShrinkWrap) must survive a compress pass
+    rather than being replaced wholesale by ShrinkWrap's own schema fields."""
+
+    SOURCE_WITH_FOREIGN_KEYS = """\
+---
+name: some-memory
+description: owned by another tool that indexes on this front-matter
+metadata:
+  type: project
+---
+
+## Status
+- tests passing
+"""
+
+    def setup_method(self) -> None:
+        self.doc = parse(self.SOURCE_WITH_FOREIGN_KEYS)
+        self.vtbf = serialize(self.doc, "some-memory.md", self.SOURCE_WITH_FOREIGN_KEYS)
+        self.fm = _parse_fm(self.vtbf)
+
+    def test_foreign_keys_survive(self) -> None:
+        assert self.fm.get("name") == "some-memory"
+        assert self.fm.get("description") == (
+            "owned by another tool that indexes on this front-matter"
+        )
+        assert self.fm.get("metadata") == {"type": "project"}
+
+    def test_shrinkwrap_schema_fields_still_present(self) -> None:
+        assert self.fm.get("shrinkwrap_schema") == SCHEMA_VERSION
+        assert self.fm.get("source_file") == "some-memory.md"
+
+    def test_shrinkwrap_fields_win_on_key_collision(self) -> None:
+        # If the source front-matter happened to define its own
+        # shrinkwrap_schema key, ShrinkWrap's own value must take precedence.
+        source = '---\nshrinkwrap_schema: "not-a-real-version"\n---\n\n## Status\n- ok\n'
+        doc = parse(source)
+        vtbf = serialize(doc, "x.md", source)
+        fm = _parse_fm(vtbf)
+        assert fm.get("shrinkwrap_schema") == SCHEMA_VERSION
+
+
 # ---------------------------------------------------------------------------
 # Serialize — section tags
 # ---------------------------------------------------------------------------
